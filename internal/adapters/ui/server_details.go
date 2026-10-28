@@ -63,6 +63,9 @@ func (sd *ServerDetails) UpdateServer(server domain.Server) {
 		lastSeen = "Never"
 	}
 	serverKey := strings.Join(server.IdentityFiles, ", ")
+	if server.PrivateKey != "" {
+		serverKey += " (embedded)" // never render the key text itself
+	}
 
 	pinnedStr := "true"
 	if server.PinnedAt.IsZero() {

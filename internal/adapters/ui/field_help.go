@@ -544,6 +544,20 @@ var fieldHelpData = map[string]FieldHelp{
 		Default:     "3",
 		Category:    "Authentication",
 	},
+	"PrivateKey": {
+		Field:       "PrivateKey",
+		Description: "Private key text stored in ~/.lazyssh/metadata.json and written to ~/.lazyssh/keys/<alias>. Included in sync.",
+		Syntax:      "OpenSSH/PEM private key text (paste here, or use Import key from file)",
+		Examples:    []string{"-----BEGIN OPENSSH PRIVATE KEY----- ... -----END OPENSSH PRIVATE KEY-----"},
+		Category:    "Authentication",
+	},
+	"PrivateKeyImportPath": {
+		Field:       "PrivateKeyImportPath",
+		Description: "On Save, if PrivateKey is empty, read the key from this file and embed it. The path itself is not stored.",
+		Syntax:      "path to a private key file (~ expanded)",
+		Examples:    []string{"~/.ssh/id_ed25519", "~/.ssh/id_rsa"},
+		Category:    "Authentication",
+	},
 	"IdentityAgent": {
 		Field:       "IdentityAgent",
 		Description: "Location of the authentication agent socket.",
