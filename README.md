@@ -19,6 +19,12 @@ With lazyssh, you can quickly navigate, connect, manage, and transfer files betw
 - 🗑 Delete server entries safely.
 - 📌 Pin / unpin servers to keep favorites at the top.
 - 🏓 Ping server to check status.
+- 🔐 Embed a private key in a server entry (paste or import); it is written to `~/.lazyssh/keys/<alias>` and used via `IdentityFile`.
+
+### Sync
+- ☁️ Push/pull your servers (SSH config + lazyssh metadata, including embedded keys) with `y`, to a local file (e.g. a Dropbox folder) or a secret GitHub Gist.
+- 🔒 The bundle is always encrypted (AES-256-GCM, PBKDF2-SHA256) with a password that is asked every time and never stored.
+- 🛟 Pull backs up `~/.ssh/config` before replacing it. Sync settings live in `~/.lazyssh/settings.json` (0600).
 
 ### Quick Server Navigation
 - 🔍 Fuzzy search by alias, IP, or tags.
@@ -177,6 +183,7 @@ make run
 | p     | Pin/Unpin server              |
 | s     | Toggle sort field             |
 | S     | Reverse sort order            |
+| y     | Sync (push/pull encrypted)    |
 | q     | Quit                          |
 
 **In Server Form:**

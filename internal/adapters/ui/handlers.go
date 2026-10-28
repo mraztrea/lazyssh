@@ -86,6 +86,9 @@ func (t *tui) handleGlobalKeys(event *tcell.EventKey) *tcell.EventKey {
 	case 'x':
 		t.handleStopForwarding()
 		return nil
+	case 'y':
+		t.handleSync()
+		return nil
 	case 'j':
 		t.handleNavigateDown()
 		return nil
