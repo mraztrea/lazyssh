@@ -14,7 +14,12 @@
 
 package ports
 
-import "github.com/Adembc/lazyssh/internal/core/domain"
+import (
+	"context"
+	"errors"
+
+	"github.com/Adembc/lazyssh/internal/core/domain"
+)
 
 type ServerRepository interface {
 	ListServers(query string) ([]domain.Server, error)
@@ -35,4 +40,14 @@ type SettingsRepository interface {
 type SnapshotRepository interface {
 	Export() (domain.SyncBundle, error)
 	Import(domain.SyncBundle) error
+}
+
+// ErrNoRemote is returned by SyncBackend.Download when nothing has been pushed yet.
+var ErrNoRemote = errors.New("no remote sync data found")
+
+// SyncBackend stores one encrypted sync blob somewhere (a file, a gist).
+// Upload returns the identifier the backend wants persisted (gist id, file path).
+type SyncBackend interface {
+	Upload(ctx context.Context, blob []byte) (remoteID string, err error)
+	Download(ctx context.Context) ([]byte, error)
 }
