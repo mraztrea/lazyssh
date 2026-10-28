@@ -16,6 +16,7 @@ package services
 
 import (
 	"bufio"
+	"errors"
 	"fmt"
 	"net"
 	"os"
@@ -31,6 +32,7 @@ import (
 	"github.com/Adembc/lazyssh/internal/core/domain"
 	"github.com/Adembc/lazyssh/internal/core/ports"
 	"go.uber.org/zap"
+	"golang.org/x/crypto/ssh"
 )
 
 type serverService struct {
@@ -81,6 +83,9 @@ func validateServer(srv domain.Server) error {
 	if ok, _ := regexp.MatchString(`^[A-Za-z0-9_.-]+$`, srv.Alias); !ok {
 		return fmt.Errorf("alias may contain letters, digits, dot, dash, underscore")
 	}
+	if srv.Alias == "." || srv.Alias == ".." {
+		return fmt.Errorf("alias must not be '.' or '..'")
+	}
 	if strings.TrimSpace(srv.Host) == "" {
 		return fmt.Errorf("Host/IP is required")
 	}
@@ -106,18 +111,37 @@ func validateServer(srv domain.Server) error {
 	if srv.Port != 0 && (srv.Port < 1 || srv.Port > 65535) {
 		return fmt.Errorf("port must be a number between 1 and 65535")
 	}
+	if key := normalizePrivateKey(srv.PrivateKey); key != "" {
+		if _, err := ssh.ParseRawPrivateKey([]byte(key)); err != nil {
+			var missing *ssh.PassphraseMissingError
+			if !errors.As(err, &missing) {
+				return fmt.Errorf("private key is not a valid OpenSSH/PEM private key")
+			}
+		}
+	}
 	return nil
+}
+
+// normalizePrivateKey converts CRLF to LF, trims trailing whitespace and appends exactly one
+// newline. Blank input yields "".
+func normalizePrivateKey(s string) string {
+	s = strings.TrimRight(strings.ReplaceAll(s, "\r\n", "\n"), " \t\r\n")
+	if strings.TrimSpace(s) == "" {
+		return ""
+	}
+	return s + "\n"
 }
 
 // UpdateServer updates an existing server with new details.
 func (s *serverService) UpdateServer(server domain.Server, newServer domain.Server) error {
 	if err := validateServer(newServer); err != nil {
-		s.logger.Warnw("validation failed on update", "error", err, "server", newServer)
+		s.logger.Warnw("validation failed on update", "error", err, "alias", newServer.Alias)
 		return err
 	}
+	newServer.PrivateKey = normalizePrivateKey(newServer.PrivateKey)
 	err := s.serverRepository.UpdateServer(server, newServer)
 	if err != nil {
-		s.logger.Errorw("failed to update server", "error", err, "server", server)
+		s.logger.Errorw("failed to update server", "error", err, "alias", server.Alias)
 	}
 	return err
 }
@@ -125,12 +149,13 @@ func (s *serverService) UpdateServer(server domain.Server, newServer domain.Serv
 // AddServer adds a new server to the repository.
 func (s *serverService) AddServer(server domain.Server) error {
 	if err := validateServer(server); err != nil {
-		s.logger.Warnw("validation failed on add", "error", err, "server", server)
+		s.logger.Warnw("validation failed on add", "error", err, "alias", server.Alias)
 		return err
 	}
+	server.PrivateKey = normalizePrivateKey(server.PrivateKey)
 	err := s.serverRepository.AddServer(server)
 	if err != nil {
-		s.logger.Errorw("failed to add server", "error", err, "server", server)
+		s.logger.Errorw("failed to add server", "error", err, "alias", server.Alias)
 	}
 	return err
 }
@@ -139,7 +164,7 @@ func (s *serverService) AddServer(server domain.Server) error {
 func (s *serverService) DeleteServer(server domain.Server) error {
 	err := s.serverRepository.DeleteServer(server)
 	if err != nil {
-		s.logger.Errorw("failed to delete server", "error", err, "server", server)
+		s.logger.Errorw("failed to delete server", "error", err, "alias", server.Alias)
 	}
 	return err
 }

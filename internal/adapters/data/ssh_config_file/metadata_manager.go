@@ -30,6 +30,8 @@ type ServerMetadata struct {
 	LastSeen string   `json:"last_seen,omitempty"`
 	PinnedAt string   `json:"pinned_at,omitempty"`
 	SSHCount int      `json:"ssh_count,omitempty"`
+	// PrivateKey is the embedded key text; source of truth for ~/.lazyssh/keys/<alias>.
+	PrivateKey string `json:"private_key,omitempty"`
 }
 
 type metadataManager struct {
@@ -103,6 +105,7 @@ func (m *metadataManager) updateServer(server domain.Server, oldAlias string) er
 	merged := existing
 
 	merged.Tags = server.Tags
+	merged.PrivateKey = server.PrivateKey
 
 	if !server.LastSeen.IsZero() {
 		merged.LastSeen = server.LastSeen.Format(time.RFC3339)
@@ -166,7 +169,7 @@ func (m *metadataManager) recordSSH(alias string) error {
 
 func (m *metadataManager) ensureDirectory() error {
 	dir := filepath.Dir(m.filePath)
-	if err := os.MkdirAll(dir, 0o750); err != nil {
+	if err := os.MkdirAll(dir, 0o700); err != nil {
 		return fmt.Errorf("mkdir '%s': %w", dir, err)
 	}
 	return nil

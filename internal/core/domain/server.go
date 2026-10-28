@@ -23,6 +23,7 @@ type Server struct {
 	User          string
 	Port          int
 	IdentityFiles []string
+	PrivateKey    string // embedded PEM text; materialised to ~/.lazyssh/keys/<alias>
 	Tags          []string
 	LastSeen      time.Time
 	PinnedAt      time.Time
