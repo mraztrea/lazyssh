@@ -22,7 +22,7 @@ import (
 	"slices"
 )
 
-// keyStore materialises embedded private keys as files so OpenSSH can use them via IdentityFile.
+// keyStore materializes embedded private keys as files so OpenSSH can use them via IdentityFile.
 // Metadata is the source of truth; these files are a cache rebuilt by ListServers.
 type keyStore struct{ dir string }
 

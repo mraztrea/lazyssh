@@ -37,7 +37,7 @@ func resolvePrivateKey(text, importPath string) (string, error) {
 		}
 		importPath = filepath.Join(home, importPath[1:])
 	}
-	data, err := os.ReadFile(importPath)
+	data, err := os.ReadFile(filepath.Clean(importPath)) // user-chosen path is the point of import
 	if err != nil {
 		return "", err
 	}

@@ -75,7 +75,7 @@ func (r *Repository) ListServers(query string) ([]domain.Server, error) {
 			continue
 		}
 		if err := r.keys.ensure(s.Alias, s.PrivateKey); err != nil {
-			r.logger.Warnw("failed to materialise embedded private key", "alias", s.Alias, "error", err)
+			r.logger.Warnw("failed to materialize embedded private key", "alias", s.Alias, "error", err)
 		}
 	}
 	if query == "" {
