@@ -16,6 +16,7 @@ package ssh_config_file
 
 import (
 	"fmt"
+	"path/filepath"
 
 	"github.com/Adembc/lazyssh/internal/core/domain"
 	"github.com/Adembc/lazyssh/internal/core/ports"
@@ -28,6 +29,7 @@ type Repository struct {
 	configPath      string
 	fileSystem      FileSystem
 	metadataManager *metadataManager
+	keys            keyStore
 	logger          *zap.SugaredLogger
 }
 
@@ -38,6 +40,7 @@ func NewRepository(logger *zap.SugaredLogger, configPath, metaDataPath string) p
 		configPath:      configPath,
 		fileSystem:      DefaultFileSystem{},
 		metadataManager: newMetadataManager(metaDataPath, logger),
+		keys:            keyStore{dir: filepath.Join(filepath.Dir(metaDataPath), "keys")},
 	}
 }
 
@@ -48,6 +51,7 @@ func NewRepositoryWithFS(logger *zap.SugaredLogger, configPath string, metaDataP
 		configPath:      configPath,
 		fileSystem:      fs,
 		metadataManager: newMetadataManager(metaDataPath, logger),
+		keys:            keyStore{dir: filepath.Join(filepath.Dir(metaDataPath), "keys")},
 	}
 }
 
@@ -66,6 +70,14 @@ func (r *Repository) ListServers(query string) ([]domain.Server, error) {
 		metadata = make(map[string]ServerMetadata)
 	}
 	servers = r.mergeMetadata(servers, metadata)
+	for _, s := range servers {
+		if s.PrivateKey == "" {
+			continue
+		}
+		if err := r.keys.ensure(s.Alias, s.PrivateKey); err != nil {
+			r.logger.Warnw("failed to materialise embedded private key", "alias", s.Alias, "error", err)
+		}
+	}
 	if query == "" {
 		return servers, nil
 	}
@@ -82,6 +94,13 @@ func (r *Repository) AddServer(server domain.Server) error {
 
 	if r.serverExists(cfg, server.Alias) {
 		return fmt.Errorf("server with alias '%s' already exists", server.Alias)
+	}
+
+	if server.PrivateKey != "" {
+		if err := r.keys.write(server.Alias, server.PrivateKey); err != nil {
+			return fmt.Errorf("failed to write private key file: %w", err)
+		}
+		server.IdentityFiles = withKeyPath(server.IdentityFiles, r.keys.path(server.Alias))
 	}
 
 	host := r.createHostFromServer(server)
@@ -124,6 +143,10 @@ func (r *Repository) UpdateServer(server domain.Server, newServer domain.Server)
 
 	}
 
+	if err := r.syncKeyFile(server.Alias, &newServer); err != nil {
+		return err
+	}
+
 	r.updateHostNodes(host, newServer)
 
 	if err := r.saveConfig(cfg); err != nil {
@@ -152,7 +175,33 @@ func (r *Repository) DeleteServer(server domain.Server) error {
 		r.logger.Warnf("Failed to save config while deleting server: %v", err)
 		return fmt.Errorf("failed to save config: %w", err)
 	}
-	return r.metadataManager.deleteServer(server.Alias)
+	if err := r.metadataManager.deleteServer(server.Alias); err != nil {
+		return err
+	}
+	return r.keys.remove(server.Alias)
+}
+
+// syncKeyFile brings the key file and IdentityFiles of newServer in line with its PrivateKey,
+// handling an alias change from oldAlias.
+func (r *Repository) syncKeyFile(oldAlias string, newServer *domain.Server) error {
+	oldPath := r.keys.path(oldAlias)
+	if newServer.PrivateKey == "" {
+		if err := r.keys.remove(oldAlias); err != nil {
+			return fmt.Errorf("failed to remove private key file: %w", err)
+		}
+		newServer.IdentityFiles = withoutKeyPath(newServer.IdentityFiles, oldPath)
+		return nil
+	}
+	if oldAlias != newServer.Alias {
+		if err := r.keys.remove(oldAlias); err != nil {
+			return fmt.Errorf("failed to remove private key file: %w", err)
+		}
+	}
+	if err := r.keys.write(newServer.Alias, newServer.PrivateKey); err != nil {
+		return fmt.Errorf("failed to write private key file: %w", err)
+	}
+	newServer.IdentityFiles = withKeyPath(withoutKeyPath(newServer.IdentityFiles, oldPath), r.keys.path(newServer.Alias))
+	return nil
 }
 
 // SetPinned sets or unsets the pinned status of a server.
