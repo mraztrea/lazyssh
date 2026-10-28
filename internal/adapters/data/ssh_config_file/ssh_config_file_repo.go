@@ -19,7 +19,6 @@ import (
 	"path/filepath"
 
 	"github.com/Adembc/lazyssh/internal/core/domain"
-	"github.com/Adembc/lazyssh/internal/core/ports"
 	"github.com/kevinburke/ssh_config"
 	"go.uber.org/zap"
 )
@@ -34,7 +33,7 @@ type Repository struct {
 }
 
 // NewRepository creates a new SSH config repository.
-func NewRepository(logger *zap.SugaredLogger, configPath, metaDataPath string) ports.ServerRepository {
+func NewRepository(logger *zap.SugaredLogger, configPath, metaDataPath string) *Repository {
 	return &Repository{
 		logger:          logger,
 		configPath:      configPath,
@@ -45,7 +44,7 @@ func NewRepository(logger *zap.SugaredLogger, configPath, metaDataPath string) p
 }
 
 // NewRepositoryWithFS creates a new SSH config repository with a custom filesystem.
-func NewRepositoryWithFS(logger *zap.SugaredLogger, configPath string, metaDataPath string, fs FileSystem) ports.ServerRepository {
+func NewRepositoryWithFS(logger *zap.SugaredLogger, configPath string, metaDataPath string, fs FileSystem) *Repository {
 	return &Repository{
 		logger:          logger,
 		configPath:      configPath,

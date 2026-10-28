@@ -30,3 +30,9 @@ type SettingsRepository interface {
 	Load() (domain.Settings, error)
 	Save(domain.Settings) error
 }
+
+// SnapshotRepository exports and imports the whole local config as a sync bundle.
+type SnapshotRepository interface {
+	Export() (domain.SyncBundle, error)
+	Import(domain.SyncBundle) error
+}

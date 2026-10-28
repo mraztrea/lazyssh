@@ -49,6 +49,11 @@ func (r *Repository) loadConfig() (*ssh_config.Config, error) {
 
 // saveConfig writes the SSH config back to the file with atomic operations and backup management.
 func (r *Repository) saveConfig(cfg *ssh_config.Config) error {
+	return r.saveRawConfig(cfg.String())
+}
+
+// saveRawConfig atomically replaces the SSH config with content, taking the usual backups first.
+func (r *Repository) saveRawConfig(content string) error {
 	configDir := filepath.Dir(r.configPath)
 
 	tempFile, err := r.createTempFile(configDir)
@@ -62,7 +67,7 @@ func (r *Repository) saveConfig(cfg *ssh_config.Config) error {
 		}
 	}()
 
-	if err := r.writeConfigToFile(tempFile, cfg); err != nil {
+	if err := r.writeConfigToFile(tempFile, content); err != nil {
 		return fmt.Errorf("failed to write config to temporary file: %w", err)
 	}
 
@@ -84,7 +89,7 @@ func (r *Repository) saveConfig(cfg *ssh_config.Config) error {
 }
 
 // writeConfigToFile writes the SSH config content to the specified file
-func (r *Repository) writeConfigToFile(filePath string, cfg *ssh_config.Config) error {
+func (r *Repository) writeConfigToFile(filePath, content string) error {
 	file, err := r.fileSystem.OpenFile(filePath, os.O_WRONLY|os.O_TRUNC, SSHConfigPerms)
 	if err != nil {
 		return fmt.Errorf("failed to open file for writing: %w", err)
@@ -95,8 +100,7 @@ func (r *Repository) writeConfigToFile(filePath string, cfg *ssh_config.Config) 
 		}
 	}()
 
-	configContent := cfg.String()
-	if _, err := file.WriteString(configContent); err != nil {
+	if _, err := file.WriteString(content); err != nil {
 		return fmt.Errorf("failed to write config content: %w", err)
 	}
 
