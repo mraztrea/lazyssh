@@ -1,50 +1,82 @@
-# [PROJECT_NAME] Constitution
-<!-- Example: Spec Constitution, TaskFlow Constitution, etc. -->
+# lazyssh Constitution
 
 ## Core Principles
 
-### [PRINCIPLE_1_NAME]
-<!-- Example: I. Library-First -->
-[PRINCIPLE_1_DESCRIPTION]
-<!-- Example: Every feature starts as a standalone library; Libraries must be self-contained, independently testable, documented; Clear purpose required - no organizational-only libraries -->
+### I. Hexagonal Layering
 
-### [PRINCIPLE_2_NAME]
-<!-- Example: II. CLI Interface -->
-[PRINCIPLE_2_DESCRIPTION]
-<!-- Example: Every library exposes functionality via CLI; Text in/out protocol: stdin/args → stdout, errors → stderr; Support JSON + human-readable formats -->
+Code is layered `domain → ports → services → adapters`, under `internal/core/{domain,ports,services}`
+and `internal/adapters/{data,ui}`.
 
-### [PRINCIPLE_3_NAME]
-<!-- Example: III. Test-First (NON-NEGOTIABLE) -->
-[PRINCIPLE_3_DESCRIPTION]
-<!-- Example: TDD mandatory: Tests written → User approved → Tests fail → Then implement; Red-Green-Refactor cycle strictly enforced -->
+- `domain` MUST NOT import any other project package.
+- `services` MUST depend on `ports` interfaces, never on concrete adapters.
+- The UI adapter (`internal/adapters/ui`) MUST NOT import `internal/adapters/data`; it talks to
+  services through `ports`.
+- Wiring of concrete adapters happens only in `cmd/`.
 
-### [PRINCIPLE_4_NAME]
-<!-- Example: IV. Integration Testing -->
-[PRINCIPLE_4_DESCRIPTION]
-<!-- Example: Focus areas requiring integration tests: New library contract tests, Contract changes, Inter-service communication, Shared schemas -->
+Rationale: keeps storage and presentation swappable and logic testable without a terminal.
 
-### [PRINCIPLE_5_NAME]
-<!-- Example: V. Observability, VI. Versioning & Breaking Changes, VII. Simplicity -->
-[PRINCIPLE_5_DESCRIPTION]
-<!-- Example: Text I/O ensures debuggability; Structured logging required; Or: MAJOR.MINOR.BUILD format; Or: Start simple, YAGNI principles -->
+### II. Test-First (NON-NEGOTIABLE)
 
-## [SECTION_2_NAME]
-<!-- Example: Additional Constraints, Security Requirements, Performance Standards, etc. -->
+- Every non-trivial function (a branch, a loop, a parser, a file or security path) MUST have a test
+  written before the implementation, seen failing, then made to pass.
+- `go test -race ./...` MUST be green before every commit.
+- Tests that touch the filesystem MUST use `t.TempDir()`; tests MUST NOT read or write the real
+  `~/.ssh` or `~/.lazyssh`.
 
-[SECTION_2_CONTENT]
-<!-- Example: Technology stack requirements, compliance standards, deployment policies, etc. -->
+Rationale: the tool edits users' SSH config; regressions there cost real access.
 
-## [SECTION_3_NAME]
-<!-- Example: Development Workflow, Review Process, Quality Gates, etc. -->
+### III. Minimal Dependencies
 
-[SECTION_3_CONTENT]
-<!-- Example: Code review requirements, testing gates, deployment approval process, etc. -->
+- The Go standard library is the first choice.
+- New third-party modules are limited to those named in an approved spec:
+  `github.com/pkg/sftp` and `golang.org/x/crypto`. Any other addition requires a constitution
+  amendment.
+
+Rationale: a small dependency graph keeps the single static binary auditable.
+
+### IV. Security of Secrets
+
+- Files written under `~/.lazyssh` MUST be mode `0600`; directories MUST be mode `0700`.
+- Private key text MUST NEVER appear in logs, the status bar, error messages, or the details pane.
+  Logs identify servers by alias only, never by dumping a `domain.Server` value.
+- Secrets MUST NOT be committed to the repository, including test fixtures; tests generate keys at
+  runtime.
+
+Rationale: lazyssh stores embedded private keys and sync tokens; leaking them is unrecoverable.
+
+### V. Simplicity (YAGNI)
+
+- No interface, factory, or config knob with a single implementation or a single value.
+- The shortest diff that satisfies the spec wins; speculative features are out of scope until a
+  spec asks for them.
+- Deliberate shortcuts with a known ceiling are marked in code with a `ponytail:` comment naming
+  the ceiling and the upgrade path.
+
+Rationale: a TUI maintained by a small team cannot afford abstraction debt.
+
+## Technical Constraints
+
+- Language: Go 1.24+; TUI: `github.com/rivo/tview` / `tcell`.
+- SSH config is the source of truth for host settings; lazyssh-only data lives in
+  `~/.lazyssh/metadata.json`.
+- Every new `.go` file carries the Apache 2.0 license header used across the repository.
+
+## Development Workflow
+
+- Quality gates: `make build` (runs gofumpt, vet, golangci-lint) and `make test`
+  (`go test -race ./...`) MUST pass before a change is merged. Lint findings are fixed, not
+  suppressed by disabling linters.
+- Commit messages use the prefixes `feat:`, `fix:`, `improve:`, `test:`, `docs:`.
+- Feature work follows the spec-kit flow: spec → plan → tasks → implement, with one commit per
+  task.
 
 ## Governance
-<!-- Example: Constitution supersedes all other practices; Amendments require documentation, approval, migration plan -->
 
-[GOVERNANCE_RULES]
-<!-- Example: All PRs/reviews must verify compliance; Complexity must be justified; Use [GUIDANCE_FILE] for runtime development guidance -->
+- This constitution supersedes conflicting practices in the repository. Reviews MUST check
+  changes against Principles I–V.
+- Amendments are made by pull request that edits this file, states the reason, and bumps the
+  version: MAJOR for removing or redefining a principle, MINOR for adding a principle or section or
+  materially expanding guidance, PATCH for wording fixes.
+- Any justified violation MUST be recorded in the feature plan's Complexity Tracking table.
 
-**Version**: [CONSTITUTION_VERSION] | **Ratified**: [RATIFICATION_DATE] | **Last Amended**: [LAST_AMENDED_DATE]
-<!-- Example: Version: 2.1.1 | Ratified: 2025-06-13 | Last Amended: 2025-07-16 -->
+**Version**: 1.0.0 | **Ratified**: 2026-10-28 | **Last Amended**: 2026-10-28
