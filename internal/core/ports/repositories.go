@@ -24,3 +24,9 @@ type ServerRepository interface {
 	SetPinned(alias string, pinned bool) error
 	RecordSSH(alias string) error
 }
+
+// SettingsRepository loads and saves app settings. A missing store loads as the zero value.
+type SettingsRepository interface {
+	Load() (domain.Settings, error)
+	Save(domain.Settings) error
+}
