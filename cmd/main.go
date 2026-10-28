@@ -19,7 +19,11 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/Adembc/lazyssh/internal/adapters/data/settings_file"
 	"github.com/Adembc/lazyssh/internal/adapters/data/ssh_config_file"
+	syncadapter "github.com/Adembc/lazyssh/internal/adapters/sync"
+	"github.com/Adembc/lazyssh/internal/core/domain"
+	"github.com/Adembc/lazyssh/internal/core/ports"
 	"github.com/Adembc/lazyssh/internal/logger"
 
 	"github.com/Adembc/lazyssh/internal/adapters/ui"
@@ -53,7 +57,9 @@ func main() {
 
 	serverRepo := ssh_config_file.NewRepository(log, sshConfigFile, metaDataFile)
 	serverService := services.NewServerService(log, serverRepo)
-	tui := ui.NewTUI(log, serverService, version, gitCommit)
+	settingsRepo := settings_file.NewRepository(filepath.Join(home, ".lazyssh", "settings.json"))
+	syncService := services.NewSyncService(log, settingsRepo, serverRepo, backendFor)
+	tui := ui.NewTUI(log, serverService, syncService, version, gitCommit)
 
 	rootCmd := &cobra.Command{
 		Use:   ui.AppName,
@@ -67,5 +73,20 @@ func main() {
 	if err := rootCmd.Execute(); err != nil {
 		_, _ = fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
+	}
+}
+
+// backendFor picks the sync backend for the configured provider.
+func backendFor(s domain.SyncSettings) (ports.SyncBackend, error) {
+	switch s.Provider {
+	case "file":
+		if s.FilePath == "" {
+			return nil, fmt.Errorf("%w (file path is empty)", services.ErrSyncNotConfigured)
+		}
+		return syncadapter.NewFileBackend(s.FilePath), nil
+	case "gist":
+		return syncadapter.NewGistBackend(s.GistToken, s.GistID), nil
+	default:
+		return nil, services.ErrSyncNotConfigured
 	}
 }

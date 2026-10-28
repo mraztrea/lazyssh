@@ -15,6 +15,7 @@
 package ports
 
 import (
+	"context"
 	"time"
 
 	"github.com/Adembc/lazyssh/internal/core/domain"
@@ -32,4 +33,12 @@ type ServerService interface {
 	StopForwarding(alias string) error
 	IsForwarding(alias string) bool
 	Ping(server domain.Server) (bool, time.Duration, error)
+}
+
+// SyncService pushes and pulls the encrypted config bundle. The password is never stored.
+type SyncService interface {
+	Settings() (domain.Settings, error)
+	SaveSettings(domain.Settings) error
+	Push(ctx context.Context, password string) error
+	Pull(ctx context.Context, password string) error
 }
