@@ -19,6 +19,7 @@ import (
 	"time"
 
 	"github.com/Adembc/lazyssh/internal/core/domain"
+	"github.com/pkg/sftp"
 )
 
 type ServerService interface {
@@ -41,4 +42,15 @@ type SyncService interface {
 	SaveSettings(domain.Settings) error
 	Push(ctx context.Context, password string) error
 	Pull(ctx context.Context, password string) error
+}
+
+// SFTPSession is an open SFTP client backed by an ssh subprocess; Close ends both.
+type SFTPSession interface {
+	Client() *sftp.Client
+	Close() error
+}
+
+// SFTPService opens SFTP sessions for an SSH config alias.
+type SFTPService interface {
+	Connect(alias string) (SFTPSession, error)
 }
