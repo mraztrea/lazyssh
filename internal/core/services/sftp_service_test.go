@@ -101,3 +101,12 @@ func TestConnect_ProcessExitReturnsError(t *testing.T) {
 		t.Fatal("Connect hung after ssh exited")
 	}
 }
+
+func TestNewSFTPService_RequestsSubsystemAfterAlias(t *testing.T) {
+	// OpenSSH's -s takes no argument: the host comes first, then the subsystem name.
+	svc := NewSFTPService(zap.NewNop().Sugar()).(*sftpService)
+	got := strings.Join(svc.cmdFor("web-1").Args, " ")
+	if want := "ssh -s -- web-1 sftp"; got != want {
+		t.Fatalf("args = %q, want %q", got, want)
+	}
+}

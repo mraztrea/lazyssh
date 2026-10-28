@@ -34,10 +34,12 @@ type sftpService struct {
 	cmdFor func(alias string) *exec.Cmd
 }
 
-// NewSFTPService opens SFTP sessions by running `ssh -s sftp <alias>`, so the user's SSH config applies.
+// NewSFTPService opens SFTP sessions by running `ssh -s -- <alias> sftp`, so the user's SSH config
+// applies. -s takes no argument (host first, then subsystem); "--" keeps an alias from being read as
+// an option.
 func NewSFTPService(logger *zap.SugaredLogger) ports.SFTPService {
 	return newSFTPServiceWithCmd(logger, func(alias string) *exec.Cmd {
-		return exec.Command("ssh", "-s", "sftp", alias)
+		return exec.Command("ssh", "-s", "--", alias, "sftp")
 	})
 }
 
