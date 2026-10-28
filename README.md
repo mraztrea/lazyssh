@@ -26,6 +26,11 @@ With lazyssh, you can quickly navigate, connect, manage, and transfer files betw
 - 🔒 The bundle is always encrypted (AES-256-GCM, PBKDF2-SHA256) with a password that is asked every time and never stored.
 - 🛟 Pull backs up `~/.ssh/config` before replacing it. Sync settings live in `~/.lazyssh/settings.json` (0600).
 
+### SFTP File Manager
+- 📂 Press `m` on a server for a dual-pane local/remote file browser over your system `ssh` (`ssh -s sftp <alias>`), so ProxyJump, agent and passphrase prompts work as usual.
+- ⬆️⬇️ Upload (`u`) and download (`d`) files or whole directories with a progress line; overwrites ask first and file modes are kept.
+- 🗂 Create (`n`), rename (`r`) and delete (`D`, with confirm) on either side; `g` jumps to a path.
+
 ### Quick Server Navigation
 - 🔍 Fuzzy search by alias, IP, or tags.
 - 🖥 One‑keypress SSH into the selected server (Enter).
@@ -184,6 +189,7 @@ make run
 | s     | Toggle sort field             |
 | S     | Reverse sort order            |
 | y     | Sync (push/pull encrypted)    |
+| m     | SFTP file manager             |
 | q     | Quit                          |
 
 **In Server Form:**
@@ -193,6 +199,22 @@ make run
 | Ctrl+L | Next tab             |
 | Ctrl+S | Save                 |
 | Esc    | Cancel               |
+
+**In SFTP File Manager:**
+| Key              | Action                                   |
+| ---------------- | ---------------------------------------- |
+| Tab              | Switch pane                              |
+| Enter            | Enter directory (`..` goes up)           |
+| Backspace / h    | Go to parent                             |
+| j / k / arrows   | Move                                     |
+| u                | Upload selected local file/dir           |
+| d                | Download selected remote file/dir        |
+| n                | New directory in active pane             |
+| r                | Rename selected                          |
+| D                | Delete selected (confirm, recursive)     |
+| R                | Refresh both panes                       |
+| g                | Go to path                               |
+| q / Esc          | Close session, back to main              |
 
 Tip: The hint bar at the top of the list shows the most useful shortcuts.
 
