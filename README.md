@@ -32,6 +32,7 @@ With lazyssh, you can quickly navigate, connect, manage, and transfer files betw
 - 📂 Press `m` on a server for a dual-pane local/remote file browser over your system `ssh` (`ssh -s sftp <alias>`), so ProxyJump, agent and passphrase prompts work as usual.
 - ⬆️⬇️ Upload (`u`) and download (`d`) files or whole directories with a progress line; overwrites ask first and file modes are kept.
 - 🗂 Create (`n`), rename (`r`) and delete (`D`, with confirm) on either side; `g` jumps to a path.
+- 🔎 Press `/` to filter the active pane by name (case-insensitive substring); arrows/Enter/Tab go back to the list keeping the filter, Esc clears it.
 
 ### Quick Server Navigation
 - 🔍 Fuzzy search by alias, IP, or tags.
@@ -216,6 +217,7 @@ make run
 | D                | Delete selected (confirm, recursive)     |
 | R                | Refresh both panes                       |
 | g                | Go to path                               |
+| /                | Filter active pane by name (Esc clears)  |
 | q / Esc          | Close session, back to main              |
 
 Tip: The hint bar at the top of the list shows the most useful shortcuts.

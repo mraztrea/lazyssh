@@ -65,8 +65,8 @@ giữ filter; Esc xoá filter; `/` lần nữa sửa chuỗi cũ.
 
 ## Phase 5: Hoàn thiện — plan T3
 
-- [ ] T012 [P] Cập nhật README.md: thêm hàng `/` (`Filter active pane by name (Esc clears)`) vào bảng "In SFTP File Manager" và một gạch đầu dòng ở mục "SFTP File Manager"
-- [ ] T013 Commit `docs: document sftp file filter` (README.md, specs/005-sftp-filter/tasks.md)
+- [X] T012 [P] Cập nhật README.md: thêm hàng `/` (`Filter active pane by name (Esc clears)`) vào bảng "In SFTP File Manager" và một gạch đầu dòng ở mục "SFTP File Manager"
+- [X] T013 Commit `docs: document sftp file filter` (README.md, specs/005-sftp-filter/tasks.md)
 
 ---
 
