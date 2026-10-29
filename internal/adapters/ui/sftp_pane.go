@@ -69,6 +69,21 @@ func entryFromInfo(info os.FileInfo, stat func() (os.FileInfo, error)) fileEntry
 	return fileEntry{Name: info.Name(), IsDir: info.IsDir(), Size: info.Size(), ModTime: info.ModTime()}
 }
 
+// filterEntries keeps entries whose name contains q, case-insensitively, in order.
+func filterEntries(e []fileEntry, q string) []fileEntry {
+	if q == "" {
+		return e
+	}
+	q = strings.ToLower(q)
+	var out []fileEntry
+	for _, x := range e {
+		if strings.Contains(strings.ToLower(x.Name), q) {
+			out = append(out, x)
+		}
+	}
+	return out
+}
+
 func localList(dir string) ([]fileEntry, error) {
 	des, err := os.ReadDir(dir)
 	if err != nil {
@@ -96,7 +111,9 @@ type filePane struct {
 	cwd     string
 	list    func(path string) ([]fileEntry, error)
 	join    func(elem ...string) string
-	entries []fileEntry
+	all     []fileEntry // everything in cwd, sorted
+	filter  string
+	entries []fileEntry // all after filter; table row i+2 is entries[i]
 }
 
 func newFilePane(title string, list func(string) ([]fileEntry, error)) *filePane {
@@ -113,8 +130,28 @@ func (p *filePane) Load(dir string) error {
 		return err
 	}
 	sortEntries(entries)
-	p.entries, p.cwd = entries, dir
+	if dir != p.cwd {
+		p.filter = ""
+	}
+	p.all, p.cwd = entries, dir
+	p.render()
+	return nil
+}
 
+// SetFilter shows only entries matching q and puts the cursor on the parent row.
+func (p *filePane) SetFilter(q string) {
+	p.filter = q
+	p.render()
+}
+
+// step moves the cursor by d rows, staying between the parent row and the last row.
+func (p *filePane) step(d int) {
+	row, _ := p.GetSelection()
+	p.Select(min(max(row+d, 1), p.GetRowCount()-1), 0)
+}
+
+func (p *filePane) render() {
+	p.entries = filterEntries(p.all, p.filter)
 	p.Clear()
 	header := func(col int, text string) {
 		p.SetCell(0, col, tview.NewTableCell(text).SetSelectable(false).SetTextColor(tcell.Color245))
@@ -123,7 +160,7 @@ func (p *filePane) Load(dir string) error {
 	header(1, "Size")
 	header(2, "Modified")
 	p.SetCell(1, 0, tview.NewTableCell("../").SetExpansion(1).SetTextColor(tcell.Color111))
-	for i, e := range entries {
+	for i, e := range p.entries {
 		row := i + 2
 		name, size, color := e.Name, formatSize(e.Size), tcell.Color252
 		if e.IsDir {
@@ -133,10 +170,13 @@ func (p *filePane) Load(dir string) error {
 		p.SetCell(row, 1, tview.NewTableCell(size).SetAlign(tview.AlignRight))
 		p.SetCell(row, 2, tview.NewTableCell(" "+e.ModTime.Format("01-02")))
 	}
-	p.SetTitle(fmt.Sprintf(" %s: %s%s ", p.title, p.cwd, p.suffix))
+	title := fmt.Sprintf(" %s: %s%s", p.title, p.cwd, p.suffix)
+	if p.filter != "" {
+		title += tview.Escape(" [/" + p.filter + "]")
+	}
+	p.SetTitle(title + " ")
 	p.Select(1, 0)
 	p.ScrollToBeginning()
-	return nil
 }
 
 // Selected returns the entry under the cursor; the parent row is {Name: "..", IsDir: true}.
