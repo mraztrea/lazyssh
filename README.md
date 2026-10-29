@@ -20,9 +20,11 @@ With lazyssh, you can quickly navigate, connect, manage, and transfer files betw
 - 📌 Pin / unpin servers to keep favorites at the top.
 - 🏓 Ping server to check status.
 - 🔐 Embed a private key in a server entry (paste or import); it is written to `~/.lazyssh/keys/<alias>` and used via `IdentityFile`.
+- 🔑 Pick `Auth method:` (`identity file`, `embedded key` or `password`) on the Authentication tab. With `password`, the masked `Password:` field is stored and lazyssh logs in without prompting: it runs itself as `SSH_ASKPASS` for your system `ssh` (connect, port forward, SFTP), so the password never appears in arguments, environment or logs. Needs OpenSSH 8.4+; older clients simply ask for the password as usual.
+- 🗝 Embedded keys and passwords are encrypted at rest in `~/.lazyssh/metadata.json` (AES-256-GCM) with `~/.lazyssh/master.key`, a random per-machine key (0600) created the first time a secret is saved. It is never synced: **back it up**. If it is lost, Pull from sync or re-enter the secrets; lazyssh refuses to load (and never overwrites) metadata it cannot decrypt.
 
 ### Sync
-- ☁️ Push/pull your servers (SSH config + lazyssh metadata, including embedded keys) with `y`, to a local file (e.g. a Dropbox folder) or a secret GitHub Gist.
+- ☁️ Push/pull your servers (SSH config + lazyssh metadata, including embedded keys and passwords) with `y`, to a local file (e.g. a Dropbox folder) or a secret GitHub Gist.
 - 🔒 The bundle is always encrypted (AES-256-GCM, PBKDF2-SHA256) with a password that is asked every time and never stored.
 - 🛟 Pull backs up `~/.ssh/config` before replacing it. Sync settings live in `~/.lazyssh/settings.json` (0600).
 
@@ -66,7 +68,7 @@ It is simply a UI/TUI wrapper around your existing `~/.ssh/config` file.
 
 - All SSH connections are executed through your system’s native ssh binary (OpenSSH).
 
-- Private keys, passwords, and credentials are never stored, transmitted, or modified by lazyssh.
+- Private keys and passwords you choose to store in lazyssh are kept encrypted in `~/.lazyssh/metadata.json` (key: `~/.lazyssh/master.key`) and leave the machine only inside the password-encrypted sync bundle. They are never shown, logged or passed on the command line.
 
 - Your existing IdentityFile paths and ssh-agent integrations work exactly as before.
 
