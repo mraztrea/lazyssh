@@ -86,8 +86,8 @@ quickstart.md bước 1, 7, 9.
 
 ## Phase 6: Hoàn thiện — plan T5
 
-- [ ] T013 [P] Cập nhật README.md mục "Server Management": gạch đầu dòng `📁 Set a \`Home Dir:\` per server (e.g. \`/var/www/app\`, \`~/projects\`): SSH opens the shell there and the SFTP file manager opens the remote pane there. Stored in \`~/.lazyssh/metadata.json\` (synced), never in \`~/.ssh/config\`.`
-- [ ] T014 Chạy `make build` và `make test`; xác nhận PASS; commit `docs: document per-server home dir` (README.md, specs/008-profile-home-dir/tasks.md)
+- [X] T013 [P] Cập nhật README.md mục "Server Management": gạch đầu dòng `📁 Set a \`Home Dir:\` per server (e.g. \`/var/www/app\`, \`~/projects\`): SSH opens the shell there and the SFTP file manager opens the remote pane there. Stored in \`~/.lazyssh/metadata.json\` (synced), never in \`~/.ssh/config\`.`
+- [X] T014 Chạy `make build` và `make test`; xác nhận PASS; commit `docs: document per-server home dir` (README.md, specs/008-profile-home-dir/tasks.md)
 
 ---
 

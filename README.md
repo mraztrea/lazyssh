@@ -18,6 +18,7 @@ With lazyssh, you can quickly navigate, connect, manage, and transfer files betw
 - ✏ Edit existing server entries directly from the UI with a tabbed interface.
 - 🗑 Delete server entries safely.
 - 📌 Pin / unpin servers to keep favorites at the top.
+- 📁 Set a `Home Dir:` per server (e.g. `/var/www/app`, `~/projects`): SSH opens the shell there (a `RemoteCommand` runs from there) and the SFTP file manager opens the remote pane there. Stored in `~/.lazyssh/metadata.json` (synced), never in `~/.ssh/config`.
 - 🏓 Ping server to check status.
 - 🔐 Embed a private key in a server entry (paste or import); it is written to `~/.lazyssh/keys/<alias>` and used via `IdentityFile`.
 - 🔑 Pick `Auth method:` (`identity file`, `embedded key` or `password`) on the Authentication tab. With `password`, the masked `Password:` field is stored and lazyssh logs in without prompting: it runs itself as `SSH_ASKPASS` for your system `ssh` (connect, port forward, SFTP), so the password never appears in arguments, environment or logs. Needs OpenSSH 8.4+; older clients simply ask for the password as usual.
