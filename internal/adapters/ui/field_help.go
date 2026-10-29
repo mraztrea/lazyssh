@@ -551,6 +551,19 @@ var fieldHelpData = map[string]FieldHelp{
 		Examples:    []string{"-----BEGIN OPENSSH PRIVATE KEY----- ... -----END OPENSSH PRIVATE KEY-----"},
 		Category:    "Authentication",
 	},
+	"AuthMethod": {
+		Field:       "AuthMethod",
+		Description: "Which stored secret lazyssh uses. Saving clears the secrets of the other methods.",
+		Syntax:      "identity file | embedded key | password",
+		Examples:    []string{"identity file (IdentityFile / ssh-agent)", "embedded key (PrivateKey above)", "password (Password below)"},
+		Category:    "Authentication",
+	},
+	"Password": {
+		Field:       "Password",
+		Description: "Login password, encrypted in ~/.lazyssh/metadata.json with ~/.lazyssh/master.key and passed to ssh via SSH_ASKPASS (OpenSSH 8.4+). Never shown. Included in sync.",
+		Syntax:      "single line of text (masked)",
+		Category:    "Authentication",
+	},
 	"PrivateKeyImportPath": {
 		Field:       "PrivateKeyImportPath",
 		Description: "On Save, if PrivateKey is empty, read the key from this file and embed it. The path itself is not stored.",

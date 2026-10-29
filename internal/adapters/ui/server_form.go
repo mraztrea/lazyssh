@@ -1073,6 +1073,8 @@ func (sf *ServerForm) getDefaultValues() ServerFormData {
 			Key:                  strings.Join(sf.original.IdentityFiles, ", "),
 			Tags:                 strings.Join(sf.original.Tags, ", "),
 			PrivateKey:           sf.original.PrivateKey,
+			AuthMethod:           authMethodOf(*sf.original),
+			Password:             sf.original.Password,
 			ProxyJump:            sf.original.ProxyJump,
 			ProxyCommand:         sf.original.ProxyCommand,
 			RemoteCommand:        sf.original.RemoteCommand,
@@ -1479,6 +1481,14 @@ func (sf *ServerForm) createAuthenticationForm() {
 	form := tview.NewForm()
 	defaultValues := sf.getDefaultValues()
 
+	// Auth method picks which stored secret (if any) is used; only its fields are enabled.
+	authDropDown := tview.NewDropDown().
+		SetLabel("Auth method:").
+		SetOptions(authMethods, nil).
+		SetCurrentOption(sf.findOptionIndex(authMethods, defaultValues.AuthMethod))
+	authDropDown.SetFocusFunc(func() { sf.updateHelp("AuthMethod") })
+	form.AddFormItem(authDropDown)
+
 	// Embedded private key: stored in metadata.json, written to ~/.lazyssh/keys/<alias>
 	form.AddTextView("\n[yellow]▶ Embedded Private Key (synced)[-]", "", 0, 1, true, false)
 	privateKeyArea := tview.NewTextArea().SetLabel("PrivateKey:").SetSize(8, 60).SetWordWrap(false)
@@ -1487,6 +1497,30 @@ func (sf *ServerForm) createAuthenticationForm() {
 	form.AddFormItem(privateKeyArea)
 	importField := sf.addInputFieldWithHelp(form, "Import key from file:", "PrivateKeyImportPath", "", 40, "~/.ssh/id_ed25519")
 	importField.SetAutocompleteFunc(sf.createSSHKeyAutocomplete())
+
+	// Stored password: encrypted in metadata.json, handed to ssh via askpass, never shown.
+	passwordField := tview.NewInputField().SetLabel("Password:").SetMaskCharacter('*').
+		SetText(defaultValues.Password).SetFieldWidth(40)
+	passwordField.SetFocusFunc(func() { sf.updateHelp("Password") })
+	form.AddFormItem(passwordField)
+
+	enableAuthFields := func(method string, _ int) {
+		key, password := authFieldsEnabled(method)
+		privateKeyArea.SetDisabled(!key)
+		importField.SetDisabled(!key)
+		passwordField.SetDisabled(!password)
+	}
+	authDropDown.SetSelectedFunc(func(method string, index int) {
+		enableAuthFields(method, index)
+		// tview's SetDisabled advances form focus; keep it on the selector so typing can't land
+		// in an unrelated (unmasked) field.
+		form.SetFocus(form.GetFormItemIndex("Auth method:"))
+		if sf.app != nil {
+			sf.app.SetFocus(authDropDown)
+		}
+	})
+	_, current := authDropDown.GetCurrentOption()
+	enableAuthFields(current, 0)
 
 	// Most common: Public key authentication
 	form.AddTextView("\n[yellow]▶ Public Key Authentication[-]", "", 0, 1, true, false)
@@ -1660,6 +1694,10 @@ type ServerFormData struct {
 	PrivateKey           string
 	PrivateKeyImportPath string
 
+	// AuthMethod is one of authMethods; Password is the raw (untrimmed) masked field text
+	AuthMethod string
+	Password   string
+
 	// Connection and proxy settings
 	ProxyJump            string
 	ProxyCommand         string
@@ -1801,9 +1839,23 @@ func (sf *ServerForm) getFormData() ServerFormData {
 		return ""
 	}
 
+	// Password is read untrimmed: surrounding spaces may be part of it.
+	getPassword := func() string {
+		for _, form := range sf.forms {
+			for i := 0; i < form.GetFormItemCount(); i++ {
+				if field, ok := form.GetFormItem(i).(*tview.InputField); ok && stripColorTags(strings.TrimSpace(field.GetLabel())) == "Password:" {
+					return field.GetText()
+				}
+			}
+		}
+		return ""
+	}
+
 	return ServerFormData{
 		PrivateKey:           getTextAreaText("PrivateKey:"),
 		PrivateKeyImportPath: getFieldText("Import key from file:"),
+		AuthMethod:           getDropdownValue("Auth method:"),
+		Password:             getPassword(),
 
 		Alias: getFieldText("Alias:"),
 		Host:  getFieldText("Host/IP:"),
@@ -1961,17 +2013,24 @@ func (sf *ServerForm) handleSave() bool {
 
 	data := sf.getFormData()
 
-	pk, err := resolvePrivateKey(data.PrivateKey, data.PrivateKeyImportPath)
-	if err != nil {
+	showError := func(msg string) {
 		if sf.app != nil {
 			modal := tview.NewModal().
-				SetText("Import key failed: " + err.Error()).
+				SetText(msg).
 				AddButtons([]string{"OK"}).
 				SetDoneFunc(func(buttonIndex int, buttonLabel string) {
 					sf.app.SetRoot(sf.Flex, true)
 				})
 			sf.app.SetRoot(modal, true)
 		}
+	}
+	if err := applyAuthMethod(&data); err != nil {
+		showError(err.Error())
+		return false
+	}
+	pk, err := resolvePrivateKey(data.PrivateKey, data.PrivateKeyImportPath)
+	if err != nil {
+		showError("Import key failed: " + err.Error())
 		return false
 	}
 	data.PrivateKey = pk
@@ -2234,6 +2293,7 @@ func (sf *ServerForm) dataToServer(data ServerFormData) domain.Server {
 		Port:                 port,
 		IdentityFiles:        keys,
 		PrivateKey:           data.PrivateKey,
+		Password:             data.Password,
 		Tags:                 tags,
 		ProxyJump:            data.ProxyJump,
 		ProxyCommand:         data.ProxyCommand,

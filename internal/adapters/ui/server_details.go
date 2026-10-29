@@ -66,6 +66,9 @@ func (sd *ServerDetails) UpdateServer(server domain.Server) {
 	if server.PrivateKey != "" {
 		serverKey += " (embedded)" // never render the key text itself
 	}
+	if server.Password != "" {
+		serverKey += " (password)" // never render the password itself
+	}
 
 	pinnedStr := "true"
 	if server.PinnedAt.IsZero() {
