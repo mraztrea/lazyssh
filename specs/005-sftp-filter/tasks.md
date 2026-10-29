@@ -55,11 +55,11 @@ giữ filter; Esc xoá filter; `/` lần nữa sửa chuỗi cũ.
 
 **Kiểm thử độc lập**: quickstart.md mục "Thủ công" bước 1–11.
 
-- [ ] T007 [US1] Trong internal/adapters/ui/sftp_view.go: trường `filterInput *tview.InputField` trên `fileManager`; tạo trong `showFileManager` (label `Filter: `, `SetBackgroundColor`/`SetFieldBackgroundColor(tcell.Color235)` như `status`), `SetChangedFunc(func(q string) { fm.active.SetFilter(q) })`; method `startFilter()` (`SetText(fm.active.filter)`, `layout.RemoveItem(status)`, `layout.AddItem(filterInput, 1, 0, false)`, `app.SetFocus(filterInput)`); `handleKey` mở đầu bằng `if fm.filterInput.HasFocus() { return ev }` và map rune thêm `'/': fm.startFilter`; `fileManagerHints` thêm `[white]/[-] Filter`
-- [ ] T008 [US2] Cùng file: method `endFilter(d int)` (`RemoveItem(filterInput)`, `AddItem(status, 1, 0, false)`, `app.SetFocus(fm.active)`, `if d != 0 { fm.active.step(d) }`); `filterInput.SetInputCapture`: `KeyDown`/`KeyEnter` → `endFilter(1)`, `KeyUp` → `endFilter(-1)`, `KeyTab` → `endFilter(0)`, trả `nil`; phím khác trả `ev`
-- [ ] T009 [US3] Cùng capture: `KeyEscape` → `filterInput.SetText("")` (changed func hiện lại đầy đủ) rồi `endFilter(0)`, trả `nil`
-- [ ] T010 Chạy `go build ./...`, `go vet ./...`, `gofmt -l .`, `make test`; xác nhận PASS; chạy các bước thủ công trong quickstart.md nếu có terminal
-- [ ] T011 Commit `feat: add / filter input to sftp file manager` (sftp_view.go)
+- [X] T007 [US1] Trong internal/adapters/ui/sftp_view.go: trường `filterInput *tview.InputField` trên `fileManager`; tạo trong `showFileManager` (label `Filter: `, `SetBackgroundColor`/`SetFieldBackgroundColor(tcell.Color235)` như `status`), `SetChangedFunc(func(q string) { fm.active.SetFilter(q) })`; method `startFilter()` (`SetText(fm.active.filter)`, `layout.RemoveItem(status)`, `layout.AddItem(filterInput, 1, 0, false)`, `app.SetFocus(filterInput)`); `handleKey` mở đầu bằng `if fm.filterInput.HasFocus() { return ev }` và map rune thêm `'/': fm.startFilter`; `fileManagerHints` thêm `[white]/[-] Filter`
+- [X] T008 [US2] Cùng file: method `endFilter(d int)` (`RemoveItem(filterInput)`, `AddItem(status, 1, 0, false)`, `app.SetFocus(fm.active)`, `if d != 0 { fm.active.step(d) }`); `filterInput.SetInputCapture`: `KeyDown`/`KeyEnter` → `endFilter(1)`, `KeyUp` → `endFilter(-1)`, `KeyTab` → `endFilter(0)`, trả `nil`; phím khác trả `ev`
+- [X] T009 [US3] Cùng capture: `KeyEscape` → `filterInput.SetText("")` (changed func hiện lại đầy đủ) rồi `endFilter(0)`, trả `nil`
+- [X] T010 Chạy `go build ./...`, `go vet ./...`, `gofmt -l .`, `make test`; xác nhận PASS; chạy các bước thủ công trong quickstart.md nếu có terminal
+- [X] T011 Commit `feat: add / filter input to sftp file manager` (sftp_view.go)
 
 ---
 

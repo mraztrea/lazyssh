@@ -31,7 +31,7 @@ import (
 )
 
 const (
-	fileManagerHints = "[white]Tab[-] Switch  • [white]Enter[-] Open  • [white]h[-] Up  • [white]u[-] Upload  • [white]d[-] Download  • [white]n[-] Mkdir  • [white]r[-] Rename  • [white]D[-] Delete  • [white]R[-] Refresh  • [white]g[-] Go to  • [white]q[-] Close"
+	fileManagerHints = "[white]Tab[-] Switch  • [white]Enter[-] Open  • [white]h[-] Up  • [white]u[-] Upload  • [white]d[-] Download  • [white]n[-] Mkdir  • [white]r[-] Rename  • [white]D[-] Delete  • [white]R[-] Refresh  • [white]g[-] Go to  • [white]/[-] Filter  • [white]q[-] Close"
 	colorError       = "#FF6B6B"
 	colorOK          = "#A0FFA0"
 	progressInterval = 100 * time.Millisecond
@@ -45,6 +45,7 @@ type fileManager struct {
 
 	local, remote, active *filePane
 	status                *tview.TextView
+	filterInput           *tview.InputField // replaces status while the filter is edited
 	layout                *tview.Flex
 
 	busy   atomic.Bool // one transfer at a time
@@ -85,6 +86,26 @@ func (t *tui) showFileManager(alias string, sess ports.SFTPSession) {
 	fm.status = tview.NewTextView().SetDynamicColors(true)
 	fm.status.SetBackgroundColor(tcell.Color235)
 	fm.status.SetText(fileManagerHints)
+
+	fm.filterInput = tview.NewInputField().SetLabel("Filter: ").SetFieldBackgroundColor(tcell.Color235)
+	fm.filterInput.SetBackgroundColor(tcell.Color235)
+	fm.filterInput.SetChangedFunc(func(q string) { fm.active.SetFilter(q) })
+	fm.filterInput.SetInputCapture(func(ev *tcell.EventKey) *tcell.EventKey {
+		switch ev.Key() {
+		case tcell.KeyDown, tcell.KeyEnter:
+			fm.endFilter(1)
+		case tcell.KeyUp:
+			fm.endFilter(-1)
+		case tcell.KeyTab:
+			fm.endFilter(0)
+		case tcell.KeyEscape:
+			fm.filterInput.SetText("") // the changed func shows the full list again
+			fm.endFilter(0)
+		default:
+			return ev
+		}
+		return nil
+	})
 
 	panes := tview.NewFlex().
 		AddItem(fm.local, 0, 1, true).
@@ -129,6 +150,9 @@ func (fm *fileManager) remoteList(dir string) ([]fileEntry, error) {
 }
 
 func (fm *fileManager) handleKey(ev *tcell.EventKey) *tcell.EventKey {
+	if fm.filterInput.HasFocus() {
+		return ev // the layout sees keys first; while filtering they are text
+	}
 	up := func() { fm.open(fm.active, fm.active.ParentDir()) }
 	var action func()
 	if ev.Key() == tcell.KeyRune {
@@ -141,6 +165,7 @@ func (fm *fileManager) handleKey(ev *tcell.EventKey) *tcell.EventKey {
 			'D': fm.remove,
 			'R': fm.refresh,
 			'g': fm.goTo,
+			'/': fm.startFilter,
 			'q': fm.close,
 		}[ev.Rune()]
 	} else {
@@ -158,6 +183,22 @@ func (fm *fileManager) handleKey(ev *tcell.EventKey) *tcell.EventKey {
 	}
 	action()
 	return nil
+}
+
+// startFilter swaps the hint line for the filter input, prefilled with the active pane's filter.
+func (fm *fileManager) startFilter() {
+	fm.filterInput.SetText(fm.active.filter)
+	fm.layout.RemoveItem(fm.status).AddItem(fm.filterInput, 1, 0, false)
+	fm.t.app.SetFocus(fm.filterInput)
+}
+
+// endFilter restores the hint line and focuses the active pane, moving its cursor by d rows.
+func (fm *fileManager) endFilter(d int) {
+	fm.layout.RemoveItem(fm.filterInput).AddItem(fm.status, 1, 0, false)
+	fm.t.app.SetFocus(fm.active)
+	if d != 0 {
+		fm.active.step(d)
+	}
 }
 
 func (fm *fileManager) switchPane() {
