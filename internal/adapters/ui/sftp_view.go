@@ -17,6 +17,7 @@ package ui
 import (
 	"fmt"
 	"os"
+	"os/exec"
 	"path"
 	"path/filepath"
 	"strings"
@@ -31,7 +32,7 @@ import (
 )
 
 const (
-	fileManagerHints = "[white]Tab[-] Switch  • [white]Enter[-] Open  • [white]h[-] Up  • [white]u[-] Upload  • [white]d[-] Download  • [white]n[-] Mkdir  • [white]r[-] Rename  • [white]D[-] Delete  • [white]R[-] Refresh  • [white]g[-] Go to  • [white]/[-] Filter  • [white]s[-] Sort  • [white]S[-] Reverse  • [white]q[-] Close"
+	fileManagerHints = "[white]Tab[-] Switch  • [white]Enter[-] Open  • [white]h[-] Up  • [white]u[-] Upload  • [white]d[-] Download  • [white]n[-] Mkdir  • [white]r[-] Rename  • [white]D[-] Delete  • [white]R[-] Refresh  • [white]e[-] Edit  • [white]g[-] Go to  • [white]/[-] Filter  • [white]s[-] Sort  • [white]S[-] Reverse  • [white]q[-] Close"
 	colorError       = "#FF6B6B"
 	colorOK          = "#A0FFA0"
 	progressInterval = 100 * time.Millisecond
@@ -165,6 +166,7 @@ func (fm *fileManager) handleKey(ev *tcell.EventKey) *tcell.EventKey {
 			'r': fm.rename,
 			'D': fm.remove,
 			'R': fm.refresh,
+			'e': fm.edit,
 			'g': fm.goTo,
 			'/': fm.startFilter,
 			's': func() { fm.sortBy(paneSort{!cur.byTime, cur.desc}) },
@@ -420,6 +422,53 @@ func (fm *fileManager) after(p *filePane, err error, msg string) {
 		return
 	}
 	fm.info(msg)
+}
+
+// edit opens the selected file in $EDITOR (vi) with the TUI suspended. Remote files are edited
+// through a temp copy that is uploaded back only if its content changed.
+func (fm *fileManager) edit() {
+	p := fm.active
+	e, ok := fm.selected(p)
+	if !ok || e.IsDir {
+		return
+	}
+	target := p.Path(e.Name)
+	var err error
+	if fm.isLocal(p) {
+		fm.t.app.Suspend(func() { err = runEditor(target) })
+		fm.edited(p, err, "Edited "+e.Name)
+		return
+	}
+	if !fm.busy.CompareAndSwap(false, true) {
+		fm.fail("A transfer is already running")
+		return
+	}
+	var changed bool
+	fm.t.app.Suspend(func() { changed, err = services.EditRemote(fm.client, target, runEditor) })
+	fm.busy.Store(false)
+	msg := "No changes"
+	if changed {
+		msg = "Saved " + e.Name
+	}
+	fm.edited(p, err, msg)
+}
+
+func (fm *fileManager) edited(p *filePane, err error, msg string) {
+	if err != nil {
+		fm.t.logger.Errorw("sftp edit failed", "alias", fm.alias, "error", err)
+		_ = fm.reload(p) // the file may have changed even though the edit failed
+		fm.fail("Edit failed: " + err.Error())
+		return
+	}
+	fm.after(p, nil, msg)
+}
+
+// runEditor runs the user's editor on file, handing it the terminal.
+func runEditor(file string) error {
+	argv := append(services.EditorCommand(os.Getenv("EDITOR")), file)
+	cmd := exec.Command(argv[0], argv[1:]...) // #nosec G204 -- the user's own $EDITOR
+	cmd.Stdin, cmd.Stdout, cmd.Stderr = os.Stdin, os.Stdout, os.Stderr
+	return cmd.Run()
 }
 
 func (fm *fileManager) mkdir() {

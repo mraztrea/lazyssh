@@ -64,9 +64,9 @@ quả `Edited <name>` / `Saved <name>` / `No changes` / `Edit failed: <lỗi>`; 
 
 **Kiểm thử độc lập**: quickstart.md mục "Thủ công" bước 1–11.
 
-- [ ] T009 [US1] Trong internal/adapters/ui/sftp_view.go: `runEditor(file string) error` (`exec.Command` với `services.EditorCommand(os.Getenv("EDITOR"))` + `file`, stdio kế thừa `os.Stdin/os.Stdout/os.Stderr`, `Run()`); `edit()` (bỏ qua khi `!ok` hoặc `e.IsDir`; Local: `fm.t.app.Suspend` chạy `runEditor` rồi `fm.edited(p, err, "Edited "+name)`; Remote: `busy.CompareAndSwap(false, true)` thất bại → `fm.fail("A transfer is already running")`, ngược lại `Suspend` gọi `services.EditRemote(fm.client, target, runEditor)`, `busy.Store(false)`, `fm.edited(p, err, "Saved "+name | "No changes")`); `edited(p, err, msg)` (lỗi → `reload(p)` bỏ qua lỗi reload rồi `fm.fail("Edit failed: " + err.Error())`, ngược lại `fm.after(p, nil, msg)`); map rune của `handleKey` thêm `'e': fm.edit`; `fileManagerHints` thêm `[white]e[-] Edit`
-- [ ] T010 Chạy `go build ./...`, `go vet ./...`, `gofmt -l .`, `go test -race ./...`; xác nhận PASS; kiểm các bước thủ công trong quickstart.md nếu có terminal
-- [ ] T011 Commit `feat: add e key to edit files in sftp file manager` (sftp_view.go, tasks.md)
+- [X] T009 [US1] Trong internal/adapters/ui/sftp_view.go: `runEditor(file string) error` (`exec.Command` với `services.EditorCommand(os.Getenv("EDITOR"))` + `file`, stdio kế thừa `os.Stdin/os.Stdout/os.Stderr`, `Run()`); `edit()` (bỏ qua khi `!ok` hoặc `e.IsDir`; Local: `fm.t.app.Suspend` chạy `runEditor` rồi `fm.edited(p, err, "Edited "+name)`; Remote: `busy.CompareAndSwap(false, true)` thất bại → `fm.fail("A transfer is already running")`, ngược lại `Suspend` gọi `services.EditRemote(fm.client, target, runEditor)`, `busy.Store(false)`, `fm.edited(p, err, "Saved "+name | "No changes")`); `edited(p, err, msg)` (lỗi → `reload(p)` bỏ qua lỗi reload rồi `fm.fail("Edit failed: " + err.Error())`, ngược lại `fm.after(p, nil, msg)`); map rune của `handleKey` thêm `'e': fm.edit`; `fileManagerHints` thêm `[white]e[-] Edit`
+- [X] T010 Chạy `go build ./...`, `go vet ./...`, `gofmt -l .`, `go test -race ./...`; xác nhận PASS; kiểm các bước thủ công trong quickstart.md nếu có terminal
+- [X] T011 Commit `feat: add e key to edit files in sftp file manager` (sftp_view.go, tasks.md)
 
 ---
 
