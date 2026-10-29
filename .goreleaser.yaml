@@ -36,6 +36,22 @@ archives:
       - goos: windows
         formats: [ zip ]
 
+nfpms:
+  - homepage: "https://github.com/adembc/lazyssh"
+    description: "A simple terminal UI for managing SSH connections."
+    maintainer: "Adem Baccara <71262172+Adembc@users.noreply.github.com>"
+    license: "Apache-2.0"
+    formats: [ deb, rpm, apk, archlinux ]
+    dependencies:
+      - openssh
+    overrides:
+      deb:
+        dependencies:
+          - openssh-client
+      rpm:
+        dependencies:
+          - openssh-clients
+
 checksum:
   name_template: "checksums.txt"
 
