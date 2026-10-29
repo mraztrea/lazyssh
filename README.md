@@ -33,6 +33,7 @@ With lazyssh, you can quickly navigate, connect, manage, and transfer files betw
 - ⬆️⬇️ Upload (`u`) and download (`d`) files or whole directories with a progress line; overwrites ask first and file modes are kept.
 - 🗂 Create (`n`), rename (`r`) and delete (`D`, with confirm) on either side; `g` jumps to a path.
 - 🔎 Press `/` to filter the active pane by name (case-insensitive substring); arrows/Enter/Tab go back to the list keeping the filter, Esc clears it.
+- ↕️ `s` sorts the active pane by name or modified time, `S` reverses; directories stay on top and the Modified column shows `YYYY-MM-DD HH:MM:SS`.
 
 ### Quick Server Navigation
 - 🔍 Fuzzy search by alias, IP, or tags.
@@ -218,6 +219,8 @@ make run
 | R                | Refresh both panes                       |
 | g                | Go to path                               |
 | /                | Filter active pane by name (Esc clears)  |
+| s                | Toggle sort field (Name/Modified)        |
+| S                | Reverse sort order                       |
 | q / Esc          | Close session, back to main              |
 
 Tip: The hint bar at the top of the list shows the most useful shortcuts.

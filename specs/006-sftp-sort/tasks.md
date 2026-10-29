@@ -77,8 +77,8 @@ có `s Sort`, `S Reverse`.
 
 ## Phase 6: Hoàn thiện — plan T4
 
-- [ ] T014 [P] Cập nhật README.md: thêm hàng `s` (`Toggle sort field (Name/Modified)`) và `S` (`Reverse sort order`) vào bảng "In SFTP File Manager" và một gạch đầu dòng ở mục "SFTP File Manager"
-- [ ] T015 Commit `docs: document sftp file sort` (README.md, specs/006-sftp-sort/tasks.md)
+- [X] T014 [P] Cập nhật README.md: thêm hàng `s` (`Toggle sort field (Name/Modified)`) và `S` (`Reverse sort order`) vào bảng "In SFTP File Manager" và một gạch đầu dòng ở mục "SFTP File Manager"
+- [X] T015 Commit `docs: document sftp file sort` (README.md, specs/006-sftp-sort/tasks.md)
 
 ---
 
