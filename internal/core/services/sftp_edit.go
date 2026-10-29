@@ -26,11 +26,13 @@ import (
 	"github.com/pkg/sftp"
 )
 
-// EditorCommand returns the editor argv for an $EDITOR value ("code --wait" splits on spaces),
-// defaulting to vi. The file to edit is appended by the caller.
-func EditorCommand(env string) []string {
-	if f := strings.Fields(env); len(f) > 0 {
-		return f
+// EditorCommand returns the editor argv: the lazyssh setting if set, else $EDITOR, else vi.
+// Values split on spaces ("code --wait"); the file to edit is appended by the caller.
+func EditorCommand(setting, env string) []string {
+	for _, v := range []string{setting, env} {
+		if f := strings.Fields(v); len(f) > 0 {
+			return f
+		}
 	}
 	return []string{"vi"}
 }

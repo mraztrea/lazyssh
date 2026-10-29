@@ -46,7 +46,7 @@ func formatSyncTime(ts time.Time) string {
 
 func (t *tui) showSyncForm(s domain.Settings) {
 	form := tview.NewForm()
-	form.SetBorder(true).SetTitle(" Sync ").SetTitleAlign(tview.AlignCenter)
+	form.SetBorder(true).SetTitle(" Sync & Settings ").SetTitleAlign(tview.AlignCenter)
 
 	providerIdx := 0
 	for i, p := range syncProviders {
@@ -59,6 +59,7 @@ func (t *tui) showSyncForm(s domain.Settings) {
 	form.AddInputField("Gist ID:", s.Sync.GistID, 40, nil, nil)
 	form.AddPasswordField("GitHub token:", s.Sync.GistToken, 40, '*', nil)
 	form.AddPasswordField("Password:", "", 40, '*', nil)
+	form.AddInputField("Editor:", s.Editor, 40, nil, nil) // for the file manager's `e` key; empty = $EDITOR, then vi
 
 	field := func(label string) string {
 		return form.GetFormItemByLabel(label).(*tview.InputField).GetText()
@@ -70,6 +71,7 @@ func (t *tui) showSyncForm(s domain.Settings) {
 		next.Sync.FilePath = strings.TrimSpace(field("File path:"))
 		next.Sync.GistID = strings.TrimSpace(field("Gist ID:"))
 		next.Sync.GistToken = strings.TrimSpace(field("GitHub token:"))
+		next.Editor = strings.TrimSpace(field("Editor:"))
 		return next
 	}
 	save := func() (domain.Settings, bool) {

@@ -33,7 +33,7 @@ func TestSettingsRepo_LoadMissingReturnsZero(t *testing.T) {
 func TestSettingsRepo_RoundTripAndPerms(t *testing.T) {
 	p := filepath.Join(t.TempDir(), "sub", "settings.json")
 	r := NewRepository(p)
-	in := domain.Settings{Sync: domain.SyncSettings{Provider: "gist", GistID: "abc", GistToken: "tok"}}
+	in := domain.Settings{Editor: "nvim", Sync: domain.SyncSettings{Provider: "gist", GistID: "abc", GistToken: "tok"}}
 	if err := r.Save(in); err != nil {
 		t.Fatal(err)
 	}

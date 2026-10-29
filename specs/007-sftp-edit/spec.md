@@ -26,7 +26,8 @@ một transfer tại một thời điểm), `specs/005-sftp-filter` và `specs/0
 
 Trả lời không tương tác (answered non-interactively) dựa trên các quyết định đi kèm yêu cầu tính năng (chọn editor, phát hiện thay đổi, cách ghi lại file remote, tương tác với transfer đang chạy, phân tách trách nhiệm).
 
-- Q: Editor được chọn như thế nào? → A: Dùng biến môi trường `EDITOR` nếu khác rỗng, tách thành chương trình và tham số theo khoảng trắng (cho phép `code --wait`); ngược lại dùng `vi`. lazyssh không có cấu hình editor riêng (FR-011).
+- Q: Editor được chọn như thế nào? → A: Dùng biến môi trường `EDITOR` nếu khác rỗng, tách thành chương trình và tham số theo khoảng trắng (cho phép `code --wait`); ngược lại dùng `vi`. (FR-011).
+- Q (bổ sung 2026-10-29): Người dùng muốn đổi `vi` thành `vim`/`nvim` mà không đụng biến môi trường? → A: Thêm trường `Editor:` vào form Sync & Settings, lưu vào `settings.json` khoá `editor`; giá trị này ưu tiên hơn `EDITOR` (FR-011).
 - Q: Làm sao biết người dùng đã đổi nội dung file remote? → A: So sánh dấu vân tay SHA-256 của nội dung bản sao tạm trước và sau khi editor chạy; không dựa vào thời gian sửa vì editor có thể ghi lại cùng nội dung (FR-005, FR-006).
 - Q: Ghi lại file remote thế nào, có giới hạn kích thước không? → A: Mở file remote ở chế độ ghi đè (cắt về 0 rồi ghi) và chép nội dung bản sao lên; không giới hạn kích thước, file lớn chỉ tốn thời gian tải; ghi đè tại chỗ nên quyền truy cập của file remote giữ nguyên (FR-005).
 - Q: Bấm `e` khi đang có transfer chạy thì sao? → A: Pane Local được phép. Pane Remote dùng chung cơ chế "một transfer tại một thời điểm": nếu đang bận thì báo đỏ `A transfer is already running` và không mở editor; trong lúc sửa remote, trạng thái bận được bật để transfer khác không chạy song song trên cùng phiên (FR-012).
@@ -139,9 +140,10 @@ do ở dòng status thay vì thao tác im lặng thất bại.
   bị ghi lại.
 - **FR-009**: Sau mỗi lần sửa remote (thành công, không đổi hay lỗi), pane Remote PHẢI được nạp lại.
 - **FR-010**: Dòng hints PHẢI có thêm `e Edit`.
-- **FR-011**: Editor PHẢI là giá trị của biến môi trường `EDITOR` (tách theo khoảng trắng thành
-  chương trình và tham số) khi biến này khác rỗng, ngược lại là `vi`; đường dẫn file được thêm vào
-  làm tham số cuối.
+- **FR-011**: Editor PHẢI được chọn theo thứ tự: trường `Editor:` trong form Sync & Settings
+  (lưu ở `~/.lazyssh/settings.json`, khoá `editor`) nếu khác rỗng; ngược lại biến môi trường
+  `EDITOR` nếu khác rỗng; ngược lại `vi`. Giá trị được tách theo khoảng trắng thành chương trình và
+  tham số (ví dụ `nvim`, `vim -u NONE`, `code --wait`); đường dẫn file được thêm vào làm tham số cuối.
 - **FR-012**: Với pane Remote, nếu một transfer đang chạy thì bấm `e` PHẢI báo đỏ
   `A transfer is already running` và không mở editor; trong lúc sửa remote, transfer mới PHẢI bị từ
   chối theo cùng cách. Pane Local không bị ràng buộc này.

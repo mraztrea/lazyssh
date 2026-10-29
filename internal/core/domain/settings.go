@@ -18,7 +18,8 @@ import "time"
 
 // Settings is machine-local app configuration stored in ~/.lazyssh/settings.json.
 type Settings struct {
-	Sync SyncSettings `json:"sync"`
+	Editor string       `json:"editor,omitempty"` // command for the file manager's `e` key; empty means $EDITOR, then vi
+	Sync   SyncSettings `json:"sync"`
 }
 
 // SyncSettings configures where the encrypted sync bundle is pushed to and pulled from.

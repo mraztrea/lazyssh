@@ -75,6 +75,11 @@ quả `Edited <name>` / `Saved <name>` / `No changes` / `Edit failed: <lỗi>`; 
 - [X] T012 [P] Cập nhật README.md: thêm hàng `e` (`Edit selected file in $EDITOR (vi)`) vào bảng "In SFTP File Manager" và một gạch đầu dòng ở mục tính năng SFTP
 - [X] T013 Commit `docs: document sftp file edit` (README.md, specs/007-sftp-edit/tasks.md)
 
+## Phase 6: Bổ sung — editor cấu hình được (yêu cầu 2026-10-29)
+
+- [X] T014 Test trước: `TestEditorCommand` nhận (setting, env), setting thắng env; round-trip `domain.Settings.Editor` trong settings_file; thấy FAIL
+- [X] T015 Thêm `Settings.Editor` (json `editor`), `EditorCommand(setting, env)`, ô `Editor:` trên form Sync & Settings, `fileManager.editor` đọc từ settings khi mở; cập nhật spec FR-011, README; commit `feat: make sftp editor command configurable`
+
 ---
 
 ## Phụ thuộc & thứ tự

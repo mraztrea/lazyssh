@@ -27,14 +27,19 @@ import (
 )
 
 func TestEditorCommand(t *testing.T) {
-	for env, want := range map[string][]string{
-		"":            {"vi"},
-		"   ":         {"vi"},
-		"nano":        {"nano"},
-		"code --wait": {"code", "--wait"},
+	for _, c := range []struct {
+		setting, env string
+		want         []string
+	}{
+		{"", "", []string{"vi"}},
+		{"  ", "   ", []string{"vi"}},
+		{"", "nano", []string{"nano"}},
+		{"", "code --wait", []string{"code", "--wait"}},
+		{"nvim", "nano", []string{"nvim"}}, // the lazyssh setting wins over $EDITOR
+		{"vim -u NONE", "", []string{"vim", "-u", "NONE"}},
 	} {
-		if got := EditorCommand(env); !reflect.DeepEqual(got, want) {
-			t.Errorf("EditorCommand(%q) = %q, want %q", env, got, want)
+		if got := EditorCommand(c.setting, c.env); !reflect.DeepEqual(got, c.want) {
+			t.Errorf("EditorCommand(%q, %q) = %q, want %q", c.setting, c.env, got, c.want)
 		}
 	}
 }

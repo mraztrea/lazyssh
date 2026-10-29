@@ -43,6 +43,7 @@ type fileManager struct {
 	alias  string
 	sess   ports.SFTPSession
 	client *sftp.Client
+	editor string // domain.Settings.Editor; empty falls back to $EDITOR then vi
 
 	local, remote, active *filePane
 	status                *tview.TextView
@@ -76,6 +77,9 @@ func (t *tui) handleFileManager() {
 
 func (t *tui) showFileManager(alias string, sess ports.SFTPSession) {
 	fm := &fileManager{t: t, alias: alias, sess: sess, client: sess.Client()}
+	if s, err := t.syncService.Settings(); err == nil {
+		fm.editor = s.Editor
+	}
 	fm.local = newFilePane("Local", localList)
 	fm.remote = newFilePane("Remote", fm.remoteList)
 	fm.remote.join = path.Join
@@ -435,7 +439,7 @@ func (fm *fileManager) edit() {
 	target := p.Path(e.Name)
 	var err error
 	if fm.isLocal(p) {
-		fm.t.app.Suspend(func() { err = runEditor(target) })
+		fm.t.app.Suspend(func() { err = fm.runEditor(target) })
 		fm.edited(p, err, "Edited "+e.Name)
 		return
 	}
@@ -444,7 +448,7 @@ func (fm *fileManager) edit() {
 		return
 	}
 	var changed bool
-	fm.t.app.Suspend(func() { changed, err = services.EditRemote(fm.client, target, runEditor) })
+	fm.t.app.Suspend(func() { changed, err = services.EditRemote(fm.client, target, fm.runEditor) })
 	fm.busy.Store(false)
 	msg := "No changes"
 	if changed {
@@ -464,8 +468,8 @@ func (fm *fileManager) edited(p *filePane, err error, msg string) {
 }
 
 // runEditor runs the user's editor on file, handing it the terminal.
-func runEditor(file string) error {
-	argv := append(services.EditorCommand(os.Getenv("EDITOR")), file)
+func (fm *fileManager) runEditor(file string) error {
+	argv := append(services.EditorCommand(fm.editor, os.Getenv("EDITOR")), file)
 	cmd := exec.Command(argv[0], argv[1:]...) // #nosec G204 -- the user's own $EDITOR
 	cmd.Stdin, cmd.Stdout, cmd.Stderr = os.Stdin, os.Stdout, os.Stderr
 	return cmd.Run()

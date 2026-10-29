@@ -214,8 +214,12 @@ func sortFixture() []fileEntry {
 	t1 := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
 	t2, t3 := t1.Add(time.Hour), t1.Add(2*time.Hour)
 	return []fileEntry{
-		{Name: "e", ModTime: t3}, {Name: "D2", IsDir: true, ModTime: t3}, {Name: "C", ModTime: t2},
-		{Name: "b", ModTime: t1}, {Name: "d1", IsDir: true, ModTime: t1}, {Name: "a", ModTime: t2},
+		{Name: "e", ModTime: t3},
+		{Name: "D2", IsDir: true, ModTime: t3},
+		{Name: "C", ModTime: t2},
+		{Name: "b", ModTime: t1},
+		{Name: "d1", IsDir: true, ModTime: t1},
+		{Name: "a", ModTime: t2},
 	}
 }
 
