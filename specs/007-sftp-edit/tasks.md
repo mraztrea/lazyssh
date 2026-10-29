@@ -72,8 +72,8 @@ quả `Edited <name>` / `Saved <name>` / `No changes` / `Edit failed: <lỗi>`; 
 
 ## Phase 5: Hoàn thiện — plan T4
 
-- [ ] T012 [P] Cập nhật README.md: thêm hàng `e` (`Edit selected file in $EDITOR (vi)`) vào bảng "In SFTP File Manager" và một gạch đầu dòng ở mục tính năng SFTP
-- [ ] T013 Commit `docs: document sftp file edit` (README.md, specs/007-sftp-edit/tasks.md)
+- [X] T012 [P] Cập nhật README.md: thêm hàng `e` (`Edit selected file in $EDITOR (vi)`) vào bảng "In SFTP File Manager" và một gạch đầu dòng ở mục tính năng SFTP
+- [X] T013 Commit `docs: document sftp file edit` (README.md, specs/007-sftp-edit/tasks.md)
 
 ---
 

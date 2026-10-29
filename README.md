@@ -34,6 +34,7 @@ With lazyssh, you can quickly navigate, connect, manage, and transfer files betw
 - 🗂 Create (`n`), rename (`r`) and delete (`D`, with confirm) on either side; `g` jumps to a path.
 - 🔎 Press `/` to filter the active pane by name (case-insensitive substring); arrows/Enter/Tab go back to the list keeping the filter, Esc clears it.
 - ↕️ `s` sorts the active pane by name or modified time, `S` reverses; directories stay on top and the Modified column shows `YYYY-MM-DD HH:MM:SS`.
+- ✏️ `e` opens the selected file in `$EDITOR` (default `vi`); remote files are edited through a private temp copy and uploaded back only if the content changed (`Saved <name>` / `No changes`).
 
 ### Quick Server Navigation
 - 🔍 Fuzzy search by alias, IP, or tags.
@@ -217,6 +218,7 @@ make run
 | r                | Rename selected                          |
 | D                | Delete selected (confirm, recursive)     |
 | R                | Refresh both panes                       |
+| e                | Edit selected file in `$EDITOR` (vi)     |
 | g                | Go to path                               |
 | /                | Filter active pane by name (Esc clears)  |
 | s                | Toggle sort field (Name/Modified)        |
