@@ -110,3 +110,19 @@ func TestParseSSHG_UserHostKeyAlias(t *testing.T) {
 		}
 	}
 }
+
+func TestValidateServer_HomeDirSingleLine(t *testing.T) {
+	base := domain.Server{Alias: "a", Host: "1.2.3.4"}
+	for _, d := range []string{"a\nb", "a\rb"} {
+		s := base
+		s.HomeDir = d
+		if err := validateServer(s); err == nil || err.Error() != "home dir must be a single line" {
+			t.Errorf("multi-line home dir: got %v", err)
+		}
+	}
+	s := base
+	s.HomeDir = "/var/www"
+	if err := validateServer(s); err != nil {
+		t.Errorf("home dir rejected: %v", err)
+	}
+}

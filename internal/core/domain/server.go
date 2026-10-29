@@ -29,9 +29,11 @@ type Server struct {
 	// secret). Such a server keeps its sealed values on disk and cannot use its password.
 	SecretError string
 	Tags        []string
-	LastSeen    time.Time
-	PinnedAt    time.Time
-	SSHCount    int
+	// HomeDir is the remote working dir for ssh/sftp; stored in metadata.json, never in ssh config.
+	HomeDir  string
+	LastSeen time.Time
+	PinnedAt time.Time
+	SSHCount int
 
 	// Additional SSH config fields
 	// Connection and proxy settings

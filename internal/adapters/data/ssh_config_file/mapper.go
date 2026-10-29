@@ -298,6 +298,7 @@ func (r *Repository) mergeMetadata(servers []domain.Server, metadata map[string]
 
 		if meta, exists := metadata[server.Alias]; exists {
 			servers[i].Tags = meta.Tags
+			servers[i].HomeDir = meta.HomeDir
 			servers[i].SSHCount = meta.SSHCount
 			servers[i].PrivateKey = meta.PrivateKey
 			servers[i].Password = meta.Password

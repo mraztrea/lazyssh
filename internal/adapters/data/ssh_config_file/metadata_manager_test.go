@@ -337,3 +337,49 @@ func TestRepo_RenameMovesPassword(t *testing.T) {
 		t.Fatalf("password still under old alias (err=%v)", err)
 	}
 }
+
+func TestRepo_HomeDirRoundTripAndRename(t *testing.T) {
+	repo, _, meta := newSecretRepo(t)
+	a := domain.Server{Alias: "a", Host: "h", HomeDir: "/var/www"}
+	if err := repo.AddServer(a); err != nil {
+		t.Fatal(err)
+	}
+	if got := rawMetadata(t, meta)["a"]["home_dir"]; got != "/var/www" {
+		t.Fatalf("home_dir on disk = %v", got)
+	}
+	servers, err := repo.ListServers("")
+	if err != nil || len(servers) != 1 || servers[0].HomeDir != "/var/www" {
+		t.Fatalf("ListServers = %+v, %v", servers, err)
+	}
+
+	tagged := servers[0]
+	tagged.Tags = []string{"prod"}
+	if err := repo.UpdateServer(servers[0], tagged); err != nil {
+		t.Fatal(err)
+	}
+	if got := rawMetadata(t, meta)["a"]["home_dir"]; got != "/var/www" {
+		t.Fatalf("home_dir lost on tag edit: %v", got)
+	}
+
+	renamed := tagged
+	renamed.Alias = "b"
+	if err := repo.UpdateServer(tagged, renamed); err != nil {
+		t.Fatal(err)
+	}
+	m := rawMetadata(t, meta)
+	if _, ok := m["a"]; ok {
+		t.Fatal("old alias still in metadata")
+	}
+	if got := m["b"]["home_dir"]; got != "/var/www" {
+		t.Fatalf("home_dir not moved to new alias: %v", got)
+	}
+
+	cleared := renamed
+	cleared.HomeDir = ""
+	if err := repo.UpdateServer(renamed, cleared); err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := rawMetadata(t, meta)["b"]["home_dir"]; ok {
+		t.Fatal("empty home_dir still written")
+	}
+}

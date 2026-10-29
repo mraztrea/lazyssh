@@ -31,6 +31,7 @@ type ServerMetadata struct {
 	LastSeen string   `json:"last_seen,omitempty"`
 	PinnedAt string   `json:"pinned_at,omitempty"`
 	SSHCount int      `json:"ssh_count,omitempty"`
+	HomeDir  string   `json:"home_dir,omitempty"`
 	// PrivateKey is the embedded key text; source of truth for ~/.lazyssh/keys/<alias>.
 	PrivateKey string `json:"private_key,omitempty"`
 	Password   string `json:"password,omitempty"`
@@ -182,6 +183,7 @@ func (m *metadataManager) updateServer(server domain.Server, oldAlias string) er
 	merged := existing
 
 	merged.Tags = server.Tags
+	merged.HomeDir = server.HomeDir
 	// A locked server's sealed secrets survive a save that enters no new secret.
 	if existing.SecretError == "" || server.PrivateKey != "" || server.Password != "" {
 		merged.PrivateKey = server.PrivateKey

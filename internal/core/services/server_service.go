@@ -114,6 +114,9 @@ func validateServer(srv domain.Server) error {
 	if strings.ContainsAny(srv.Password, "\r\n") {
 		return fmt.Errorf("password must be a single line")
 	}
+	if strings.ContainsAny(srv.HomeDir, "\r\n") {
+		return fmt.Errorf("home dir must be a single line")
+	}
 	if key := normalizePrivateKey(srv.PrivateKey); key != "" {
 		if _, err := ssh.ParseRawPrivateKey([]byte(key)); err != nil {
 			var missing *ssh.PassphraseMissingError
