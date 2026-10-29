@@ -186,3 +186,16 @@ func TestFilePane_Step(t *testing.T) {
 		t.Fatalf("no match step row = %d", row)
 	}
 }
+
+func TestFilePane_ModifiedColumn(t *testing.T) {
+	list := func(string) ([]fileEntry, error) {
+		return []fileEntry{{Name: "f.txt", ModTime: time.Date(2026, 10, 29, 14, 5, 9, 0, time.Local)}}, nil
+	}
+	p := newFilePane("Remote", list)
+	if err := p.Load("/srv"); err != nil {
+		t.Fatal(err)
+	}
+	if got := p.GetCell(2, 2).Text; got != " 2026-10-29 14:05:09" {
+		t.Fatalf("modified = %q", got)
+	}
+}

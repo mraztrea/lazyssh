@@ -168,7 +168,7 @@ func (p *filePane) render() {
 		}
 		p.SetCell(row, 0, tview.NewTableCell(tview.Escape(name)).SetExpansion(1).SetTextColor(color))
 		p.SetCell(row, 1, tview.NewTableCell(size).SetAlign(tview.AlignRight))
-		p.SetCell(row, 2, tview.NewTableCell(" "+e.ModTime.Format("01-02")))
+		p.SetCell(row, 2, tview.NewTableCell(" "+e.ModTime.Format("2006-01-02 15:04:05")))
 	}
 	title := fmt.Sprintf(" %s: %s%s", p.title, p.cwd, p.suffix)
 	if p.filter != "" {

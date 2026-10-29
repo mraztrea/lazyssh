@@ -39,9 +39,9 @@ Không có: mọi thay đổi nằm trong hai file UI có sẵn.
 
 **Kiểm thử độc lập**: `go test -race ./internal/adapters/ui/ -run ModifiedColumn -v`
 
-- [ ] T001 [US2] Viết test thất bại `TestFilePane_ModifiedColumn` trong internal/adapters/ui/sftp_pane_test.go: list giả một file `ModTime = time.Date(2026, 10, 29, 14, 5, 9, 0, time.Local)`, `Load("/srv")` → `GetCell(2, 2).Text == " 2026-10-29 14:05:09"`; chạy và xác nhận FAIL (đang là ` 10-29`)
-- [ ] T002 [US2] Trong `render()` của internal/adapters/ui/sftp_pane.go đổi layout `"01-02"` thành `"2006-01-02 15:04:05"`; chạy `go test -race ./...`, `gofmt -l .`, `go vet ./...`; xác nhận PASS
-- [ ] T003 Commit `feat: show full modified time in sftp file pane` (sftp_pane.go, sftp_pane_test.go, tasks.md)
+- [X] T001 [US2] Viết test thất bại `TestFilePane_ModifiedColumn` trong internal/adapters/ui/sftp_pane_test.go: list giả một file `ModTime = time.Date(2026, 10, 29, 14, 5, 9, 0, time.Local)`, `Load("/srv")` → `GetCell(2, 2).Text == " 2026-10-29 14:05:09"`; chạy và xác nhận FAIL (đang là ` 10-29`)
+- [X] T002 [US2] Trong `render()` của internal/adapters/ui/sftp_pane.go đổi layout `"01-02"` thành `"2006-01-02 15:04:05"`; chạy `go test -race ./...`, `gofmt -l .`, `go vet ./...`; xác nhận PASS
+- [X] T003 Commit `feat: show full modified time in sftp file pane` (sftp_pane.go, sftp_pane_test.go, tasks.md)
 
 ---
 
