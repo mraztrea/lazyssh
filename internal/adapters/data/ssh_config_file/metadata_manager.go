@@ -34,6 +34,9 @@ type ServerMetadata struct {
 	// PrivateKey is the embedded key text; source of truth for ~/.lazyssh/keys/<alias>.
 	PrivateKey string `json:"private_key,omitempty"`
 	Password   string `json:"password,omitempty"`
+	// SecretError is set when PrivateKey/Password could not be decrypted; they then keep their
+	// sealed text as read so a later save never destroys them.
+	SecretError string `json:"-"`
 }
 
 type metadataManager struct {
@@ -70,14 +73,13 @@ func (m *metadataManager) loadAll() (map[string]ServerMetadata, error) {
 		return nil, fmt.Errorf("parse metadata JSON '%s': %w", m.filePath, err)
 	}
 
-	if err := m.openSecrets(metadata); err != nil {
-		return nil, err
-	}
+	m.openSecrets(metadata)
 	return metadata, nil
 }
 
 // openSecrets decrypts sealed secrets in place, loading the master key only if one is sealed.
-func (m *metadataManager) openSecrets(metadata map[string]ServerMetadata) error {
+// A value that cannot be decrypted is left sealed and locks only its own server (SecretError).
+func (m *metadataManager) openSecrets(metadata map[string]ServerMetadata) {
 	var key []byte
 	open := func(alias, field string, v *string) error {
 		if !secretbox.IsSealed(*v) {
@@ -99,21 +101,19 @@ func (m *metadataManager) openSecrets(metadata map[string]ServerMetadata) error 
 	}
 	for alias, meta := range metadata {
 		if err := open(alias, "private_key", &meta.PrivateKey); err != nil {
-			return err
-		}
-		if err := open(alias, "password", &meta.Password); err != nil {
-			return err
+			meta.SecretError = err.Error()
+		} else if err := open(alias, "password", &meta.Password); err != nil {
+			meta.SecretError = err.Error()
 		}
 		metadata[alias] = meta
 	}
-	return nil
 }
 
 // marshalSealed encodes metadata with every non-empty secret sealed, creating the master key if needed.
 func (m *metadataManager) marshalSealed(metadata map[string]ServerMetadata) ([]byte, error) {
 	var key []byte
 	seal := func(v *string) error {
-		if *v == "" {
+		if *v == "" || secretbox.IsSealed(*v) { // sealed = undecryptable on this machine; keep as is
 			return nil
 		}
 		if key == nil {
@@ -182,8 +182,11 @@ func (m *metadataManager) updateServer(server domain.Server, oldAlias string) er
 	merged := existing
 
 	merged.Tags = server.Tags
-	merged.PrivateKey = server.PrivateKey
-	merged.Password = server.Password
+	// A locked server's sealed secrets survive a save that enters no new secret.
+	if existing.SecretError == "" || server.PrivateKey != "" || server.Password != "" {
+		merged.PrivateKey = server.PrivateKey
+		merged.Password = server.Password
+	}
 
 	if !server.LastSeen.IsZero() {
 		merged.LastSeen = server.LastSeen.Format(time.RFC3339)

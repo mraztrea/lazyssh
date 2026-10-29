@@ -25,10 +25,13 @@ type Server struct {
 	IdentityFiles []string
 	PrivateKey    string // embedded PEM text; materialized to ~/.lazyssh/keys/<alias>
 	Password      string // never log; sealed at rest in metadata.json
-	Tags          []string
-	LastSeen      time.Time
-	PinnedAt      time.Time
-	SSHCount      int
+	// SecretError is why PrivateKey/Password could not be decrypted (names a file/alias, never a
+	// secret). Such a server keeps its sealed values on disk and cannot use its password.
+	SecretError string
+	Tags        []string
+	LastSeen    time.Time
+	PinnedAt    time.Time
+	SSHCount    int
 
 	// Additional SSH config fields
 	// Connection and proxy settings

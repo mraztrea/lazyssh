@@ -21,7 +21,7 @@ With lazyssh, you can quickly navigate, connect, manage, and transfer files betw
 - 🏓 Ping server to check status.
 - 🔐 Embed a private key in a server entry (paste or import); it is written to `~/.lazyssh/keys/<alias>` and used via `IdentityFile`.
 - 🔑 Pick `Auth method:` (`identity file`, `embedded key` or `password`) on the Authentication tab. With `password`, the masked `Password:` field is stored and lazyssh logs in without prompting: it runs itself as `SSH_ASKPASS` for your system `ssh` (connect, port forward, SFTP), so the password never appears in arguments, environment or logs. Needs OpenSSH 8.4+; older clients simply ask for the password as usual.
-- 🗝 Embedded keys and passwords are encrypted at rest in `~/.lazyssh/metadata.json` (AES-256-GCM) with `~/.lazyssh/master.key`, a random per-machine key (0600) created the first time a secret is saved. It is never synced: **back it up**. If it is lost, Pull from sync or re-enter the secrets; lazyssh refuses to load (and never overwrites) metadata it cannot decrypt.
+- 🗝 Embedded keys and passwords are encrypted at rest in `~/.lazyssh/metadata.json` (AES-256-GCM) with `~/.lazyssh/master.key`, a random per-machine key (0600) created the first time a secret is saved. It is never synced: **back it up**. If it is lost, only servers with a stored secret are locked (shown as `locked:` in the details pane; their sealed values are never overwritten): restore the key, Pull from sync, or re-enter the secret.
 
 ### Sync
 - ☁️ Push/pull your servers (SSH config + lazyssh metadata, including embedded keys and passwords) with `y`, to a local file (e.g. a Dropbox folder) or a secret GitHub Gist.

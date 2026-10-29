@@ -301,6 +301,10 @@ func (r *Repository) mergeMetadata(servers []domain.Server, metadata map[string]
 			servers[i].SSHCount = meta.SSHCount
 			servers[i].PrivateKey = meta.PrivateKey
 			servers[i].Password = meta.Password
+			servers[i].SecretError = meta.SecretError
+			if meta.SecretError != "" { // sealed text stays on disk; never hand ciphertext to callers
+				servers[i].PrivateKey, servers[i].Password = "", ""
+			}
 
 			if meta.LastSeen != "" {
 				if lastSeen, err := time.Parse(time.RFC3339, meta.LastSeen); err == nil {

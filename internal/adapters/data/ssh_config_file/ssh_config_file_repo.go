@@ -141,8 +141,11 @@ func (r *Repository) UpdateServer(server domain.Server, newServer domain.Server)
 
 	}
 
-	if err := r.syncKeyFile(server.Alias, &newServer); err != nil {
-		return err
+	// A locked server saved without a new secret keeps its materialized key file too.
+	if server.SecretError == "" || newServer.PrivateKey != "" || newServer.Password != "" {
+		if err := r.syncKeyFile(server.Alias, &newServer); err != nil {
+			return err
+		}
 	}
 
 	r.updateHostNodes(host, newServer)
@@ -218,5 +221,9 @@ func (r *Repository) GetPassword(alias string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return metadata[alias].Password, nil
+	meta := metadata[alias]
+	if meta.SecretError != "" {
+		return "", fmt.Errorf("%s", meta.SecretError)
+	}
+	return meta.Password, nil
 }

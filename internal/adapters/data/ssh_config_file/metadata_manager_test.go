@@ -20,6 +20,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"encoding/pem"
+	"errors"
 	"os"
 	"path/filepath"
 	"strings"
@@ -175,25 +176,68 @@ func tamperSealed(t *testing.T, meta string) {
 }
 
 // failingOps runs read and write operations that must fail closed and returns their errors.
+// failingOps checks undecryptable metadata only locks server "a": it still lists (marked, without
+// ciphertext), can be pinned, has no usable password, and its sealed bytes survive the write.
 func failingOps(t *testing.T, repo *Repository, meta string) []error {
 	t.Helper()
-	before := readFile(t, meta)
-	_, listErr := repo.ListServers("")
-	if listErr == nil {
-		t.Fatal("ListServers succeeded on undecryptable metadata")
+	before := rawMetadata(t, meta)
+	servers, err := repo.ListServers("")
+	if err != nil || len(servers) != 1 || servers[0].SecretError == "" {
+		t.Fatalf("locked server not listed with SecretError: err=%v n=%d", err, len(servers))
 	}
-	pinErr := repo.SetPinned("a", true)
-	if pinErr == nil {
-		t.Fatal("SetPinned succeeded on undecryptable metadata")
+	if servers[0].Password != "" || servers[0].PrivateKey != "" {
+		t.Fatal("ciphertext handed out as a secret")
+	}
+	if err := repo.SetPinned("a", true); err != nil {
+		t.Fatalf("SetPinned on locked server: %v", err)
 	}
 	_, pwErr := repo.GetPassword("a")
 	if pwErr == nil {
 		t.Fatal("GetPassword succeeded on undecryptable metadata")
 	}
-	if readFile(t, meta) != before {
-		t.Fatal("metadata.json changed after failed load")
+	after := rawMetadata(t, meta)
+	for _, field := range []string{"private_key", "password"} {
+		if before["a"][field] != after["a"][field] {
+			t.Fatalf("%s rewritten on a locked server", field)
+		}
 	}
-	return []error{listErr, pinErr, pwErr}
+	return []error{errors.New(servers[0].SecretError), pwErr}
+}
+
+func TestMetadata_LockedServerUpdateKeepsSecretsUnlessReplaced(t *testing.T) {
+	repo, _, meta := newSecretRepo(t)
+	key := genPrivateKey(t)
+	if err := repo.AddServer(domain.Server{Alias: "a", Host: "h", PrivateKey: key}); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Remove(masterKeyPath(meta)); err != nil {
+		t.Fatal(err)
+	}
+	servers, _ := repo.ListServers("")
+	old := servers[0]
+	sealed := rawMetadata(t, meta)["a"]["private_key"]
+
+	// Saving the form with the (blank) secret untouched keeps the sealed value and the key file.
+	if err := repo.UpdateServer(old, domain.Server{Alias: "a", Host: "h2", IdentityFiles: old.IdentityFiles}); err != nil {
+		t.Fatal(err)
+	}
+	if rawMetadata(t, meta)["a"]["private_key"] != sealed {
+		t.Fatal("sealed key dropped by an update that did not touch it")
+	}
+	if readFile(t, repo.keys.path("a")) != key {
+		t.Fatal("materialized key file removed for a locked server")
+	}
+	assertNoFile(t, masterKeyPath(meta))
+
+	// Entering a new secret replaces it (and mints a new master key).
+	pw := genPassword(t)
+	if err := repo.UpdateServer(old, domain.Server{Alias: "a", Host: "h2", Password: pw}); err != nil {
+		t.Fatal(err)
+	}
+	servers, err := repo.ListServers("")
+	if err != nil || servers[0].SecretError != "" || servers[0].Password != pw {
+		t.Fatalf("new password not usable: err=%v secretErr=%q", err, servers[0].SecretError)
+	}
 }
 
 func TestMetadata_TamperedValueFailsLoadWithoutWrite(t *testing.T) {

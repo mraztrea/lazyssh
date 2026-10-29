@@ -69,6 +69,9 @@ func (sd *ServerDetails) UpdateServer(server domain.Server) {
 	if server.Password != "" {
 		serverKey += " (password)" // never render the password itself
 	}
+	if server.SecretError != "" {
+		serverKey += " [red](locked: " + tview.Escape(server.SecretError) + ")[-]"
+	}
 
 	pinnedStr := "true"
 	if server.PinnedAt.IsZero() {

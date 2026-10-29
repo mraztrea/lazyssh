@@ -56,6 +56,11 @@ func (r *Repository) Export() (domain.SyncBundle, error) {
 	if err != nil {
 		return b, fmt.Errorf("load metadata: %w", err)
 	}
+	for alias, m := range meta {
+		if m.SecretError != "" { // a locked server would ship ciphertext nobody can open
+			return b, fmt.Errorf("export %q: %s", alias, m.SecretError)
+		}
+	}
 	if b.Metadata, err = json.Marshal(meta); err != nil {
 		return b, fmt.Errorf("marshal metadata: %w", err)
 	}

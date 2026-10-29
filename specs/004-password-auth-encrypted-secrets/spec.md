@@ -25,7 +25,7 @@ Trả lời không tương tác (answered non-interactively) dựa trên các qu
 - Q: Phương thức xác thực được chọn có được lưu thành một trường riêng không, và bí mật của phương thức kia xử lý thế nào khi lưu? → A: Không lưu; phương thức được suy ra từ bí mật nào đang có (password, nếu không thì embedded key, nếu không thì identity file). Dropdown chỉ là công cụ hiển thị; khi lưu, nó xoá bí mật của các phương thức không được chọn để một server không bao giờ mang cả password lẫn embedded key (quyết định 2; FR-001, FR-003).
 - Q: lazyssh chuyển mật khẩu đã lưu cho ssh hệ thống thế nào mà không dùng `sshpass` hay SSH client nội bộ? → A: lazyssh tự chạy lại chính nó làm chương trình `SSH_ASKPASS` với `SSH_ASKPASS_REQUIRE=force` và `LAZYSSH_ASKPASS_ALIAS=<alias>`; helper tra mật khẩu theo alias rồi in ra. Không đặt `DISPLAY`; cần OpenSSH ≥ 8.4 để không bị hỏi mật khẩu, client cũ hơn chỉ đơn giản hỏi trên terminal. Mật khẩu không bao giờ nằm trong argv hay env. Áp dụng cho kết nối SSH, port forward và đường SFTP `ssh -s` (quyết định 3; FR-011–FR-015).
 - Q: Helper askpass làm gì với các prompt không phải prompt mật khẩu, và mật khẩu sai được thử lại bao nhiêu lần? → A: Chỉ prompt kết thúc bằng `password:` và chứa đúng `user@host` của server đích (lấy từ `ssh -G`) mới nhận mật khẩu đã lưu, nên host `ProxyJump` không bao giờ nhận được nó; mọi prompt khác (xác nhận host key, mã một lần) được chuyển tiếp tới `/dev/tty`, hoặc thất bại nếu không có terminal. lazyssh thêm `-o PreferredAuthentications=password,keyboard-interactive -o NumberOfPasswordPrompts=1`, nên mật khẩu sai chỉ được thử một lần (quyết định 3 "ưu tiên PreferredAuthentications=password"; FR-011, FR-013, FR-014).
-- Q: Mật khẩu và embedded key được mã hoá trong `metadata.json` thế nào, và giá trị plaintext cũ xử lý ra sao? → A: AES-256-GCM với key ngẫu nhiên 32 byte riêng cho từng máy tại `~/.lazyssh/master.key` (0600, tạo khi cần lần đầu), nonce mới cho mỗi giá trị, lưu dạng `enc:v1:<base64>`; không thêm dependency. Giá trị không có tiền tố được đọc như plaintext cũ và được mã hoá ở lần ghi kế tiếp. `master.key` thiếu/hỏng hoặc giá trị bị sửa sẽ làm việc nạp thất bại với lỗi nêu tên file, không bao giờ nêu bí mật, và chặn mọi thao tác ghi (quyết định 4, 5; FR-006–FR-009).
+- Q: Mật khẩu và embedded key được mã hoá trong `metadata.json` thế nào, và giá trị plaintext cũ xử lý ra sao? → A: AES-256-GCM với key ngẫu nhiên 32 byte riêng cho từng máy tại `~/.lazyssh/master.key` (0600, tạo khi cần lần đầu), nonce mới cho mỗi giá trị, lưu dạng `enc:v1:<base64>`; không thêm dependency. Giá trị không có tiền tố được đọc như plaintext cũ và được mã hoá ở lần ghi kế tiếp. `master.key` thiếu/hỏng hoặc giá trị bị sửa chỉ khoá server có giá trị đó: server vẫn hiện với lỗi nêu tên file (không bao giờ nêu bí mật), mật khẩu không dùng được, giá trị mã hoá được giữ nguyên trên đĩa qua mọi lần ghi cho tới khi người dùng nhập bí mật mới (quyết định 4, 5; FR-006–FR-009; người dùng chọn "chỉ chặn server lỗi" ngày 2026-10-29).
 - Q: Sync bundle có thay đổi không, và `master.key` có được sync không? → A: Không đổi định dạng (bundle version 1). Bên trong bundle (vốn đã được mã hoá), `private_key` và `password` đi dưới dạng plaintext; khi pull chúng được mã hoá lại bằng `master.key` của máy cục bộ, file này không bao giờ được sync (quyết định 5, 6; FR-016, FR-017).
 
 ## Kịch bản người dùng & Kiểm thử (User Scenarios & Testing) *(bắt buộc)*
@@ -152,9 +152,11 @@ nạp B và xác nhận bí mật khớp và `metadata.json` của B chỉ chứ
   không bao giờ được tạo bởi một thao tác chỉ đọc.
 - **Pull khi thiếu `master.key`**: nếu dữ liệu pull về có bí mật thì tạo key mới, vì metadata pull về
   thay thế mọi giá trị mã hoá cũ.
-- **`metadata.json` không giải mã được** (FR-008): danh sách server không nạp được và mọi kết nối do
-  lazyssh khởi chạy đều bị huỷ với cùng lỗi nêu tên file, kể cả server không có mật khẩu, vì không
-  thể biết server nào có mật khẩu; khôi phục bằng cách trả lại `master.key` hoặc Pull từ sync.
+- **`metadata.json` không giải mã được** (FR-008): chỉ server có giá trị lỗi bị khoá. Nó vẫn hiện
+  trong danh sách, details pane ghi `(locked: <lỗi nêu tên file>)`, kết nối bằng mật khẩu bị huỷ
+  với lỗi đó; server khác không bị ảnh hưởng. Pin/sửa server bị khoá mà không nhập bí mật mới thì
+  giá trị mã hoá và file key đã tạo được giữ nguyên; nhập bí mật mới sẽ thay thế. Export/Push thất
+  bại khi còn server bị khoá. Khôi phục bằng cách trả lại `master.key` hoặc Pull từ sync.
 - **Đổi tên alias server**: mật khẩu đi theo server như metadata khác.
 - **Copy SSH command** (`c`): không đổi; không bao giờ chứa mật khẩu.
 - **Host `ProxyJump` cũng hỏi mật khẩu**: prompt của nó nêu một `user@host` khác, nên helper chuyển
@@ -198,10 +200,12 @@ nạp B và xác nhận bí mật khớp và `metadata.json` của B chỉ chứ
   kích thước PHẢI được coi là hỏng.
 - **FR-008**: Giá trị lưu không có tiền tố `enc:v1:` PHẢI được đọc như plaintext cũ và được ghi ở
   dạng mã hoá trong lần ghi `metadata.json` kế tiếp. Giá trị `enc:` có phiên bản lạ, base64 sai, xác
-  thực thất bại, hoặc `master.key` thiếu/hỏng PHẢI làm việc nạp metadata thất bại với lỗi nêu tên
-  file có vấn đề (`~/.lazyssh/master.key` hoặc `~/.lazyssh/metadata.json` kèm alias) và KHÔNG ĐƯỢC
-  gây ra bất kỳ thao tác ghi nào vào `metadata.json` hay `master.key`.
-- **FR-009**: Lỗi ở FR-008 PHẢI hiển thị cho người dùng trên status bar (không chỉ ghi log).
+  thực thất bại, hoặc `master.key` thiếu/hỏng PHẢI khoá riêng server đó (`SecretError` nêu tên file
+  có vấn đề: `~/.lazyssh/master.key` hoặc `~/.lazyssh/metadata.json` kèm alias), KHÔNG ĐƯỢC đưa
+  ciphertext ra ngoài adapter, và mọi lần ghi sau đó PHẢI giữ nguyên giá trị mã hoá cũng như KHÔNG
+  tạo `master.key` mới trừ khi có bí mật plaintext cần mã hoá.
+- **FR-009**: Lỗi ở FR-008 PHẢI hiển thị cho người dùng: trong details pane của server bị khoá và
+  trên status bar khi kết nối bằng mật khẩu thất bại (không chỉ ghi log).
 - **FR-010**: Embedded key VẪN PHẢI được ghi ra `~/.lazyssh/keys/<alias>` (0600) dạng plaintext như
   spec 001, vì OpenSSH đọc file đó.
 

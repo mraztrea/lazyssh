@@ -32,8 +32,10 @@ HOME=$H ./bin/lazyssh          # chạy trong tmux để điều khiển
    hỏi gì.
 4. Khi đang kết nối, từ shell khác: `ps eww -u $USER | grep -c '<password>'` → `0`.
 5. Sửa `pw`, đặt mật khẩu sai, kết nối: một lần `Permission denied`, không lặp thử lại.
-6. Di chuyển `$H/.lazyssh/master.key` đi chỗ khác rồi khởi động lại: status màu đỏ nêu tên
-   `master.key`; `metadata.json` không đổi (`sha256sum` trước/sau). Trả lại file: server hiện lại.
+6. Di chuyển `$H/.lazyssh/master.key` đi chỗ khác rồi khởi động lại: `pw` vẫn hiện, details pane
+   ghi `(locked: … master.key …)`, server khác bình thường; Enter trên `pw` → lỗi đỏ nêu tên
+   `master.key`; pin `pw` rồi so `sha256sum` của giá trị `enc:v1:` trước/sau: không đổi, không có
+   `master.key` mới. Trả lại file: `pw` hết khoá.
 7. Plaintext cũ: ghi `{"pw":{"password":"plain"}}` vào `metadata.json`, khởi động, pin `pw` (`p`):
    file giờ chỉ còn `enc:v1:`.
 8. Sync: `y` → Push tới `/tmp/s.enc` (password `x`), xoá `$H/.lazyssh/master.key` và
