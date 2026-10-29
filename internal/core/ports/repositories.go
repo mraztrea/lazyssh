@@ -28,6 +28,7 @@ type ServerRepository interface {
 	DeleteServer(server domain.Server) error
 	SetPinned(alias string, pinned bool) error
 	RecordSSH(alias string) error
+	GetPassword(alias string) (string, error)
 }
 
 // SettingsRepository loads and saves app settings. A missing store loads as the zero value.

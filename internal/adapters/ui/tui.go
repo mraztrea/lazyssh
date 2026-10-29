@@ -136,7 +136,10 @@ func (t *tui) bindEvents() *tui {
 }
 
 func (t *tui) loadInitialData() *tui {
-	servers, _ := t.serverService.ListServers("")
+	servers, err := t.serverService.ListServers("")
+	if err != nil {
+		t.showStatusTempColor(err.Error(), "#FF6B6B")
+	}
 	sortServersForUI(servers, t.sortMode)
 	t.updateListTitle()
 	t.serverList.UpdateServers(servers)

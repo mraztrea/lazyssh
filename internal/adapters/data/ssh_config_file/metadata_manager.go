@@ -22,6 +22,7 @@ import (
 	"time"
 
 	"github.com/Adembc/lazyssh/internal/core/domain"
+	"github.com/Adembc/lazyssh/internal/secretbox"
 	"go.uber.org/zap"
 )
 
@@ -32,15 +33,21 @@ type ServerMetadata struct {
 	SSHCount int      `json:"ssh_count,omitempty"`
 	// PrivateKey is the embedded key text; source of truth for ~/.lazyssh/keys/<alias>.
 	PrivateKey string `json:"private_key,omitempty"`
+	Password   string `json:"password,omitempty"`
 }
 
 type metadataManager struct {
 	filePath string
+	keyPath  string // master.key next to metadata.json; seals PrivateKey and Password at rest
 	logger   *zap.SugaredLogger
 }
 
 func newMetadataManager(filePath string, logger *zap.SugaredLogger) *metadataManager {
-	return &metadataManager{filePath: filePath, logger: logger}
+	return &metadataManager{
+		filePath: filePath,
+		keyPath:  filepath.Join(filepath.Dir(filePath), "master.key"),
+		logger:   logger,
+	}
 }
 
 func (m *metadataManager) loadAll() (map[string]ServerMetadata, error) {
@@ -63,7 +70,77 @@ func (m *metadataManager) loadAll() (map[string]ServerMetadata, error) {
 		return nil, fmt.Errorf("parse metadata JSON '%s': %w", m.filePath, err)
 	}
 
+	if err := m.openSecrets(metadata); err != nil {
+		return nil, err
+	}
 	return metadata, nil
+}
+
+// openSecrets decrypts sealed secrets in place, loading the master key only if one is sealed.
+func (m *metadataManager) openSecrets(metadata map[string]ServerMetadata) error {
+	var key []byte
+	open := func(alias, field string, v *string) error {
+		if !secretbox.IsSealed(*v) {
+			return nil
+		}
+		if key == nil {
+			k, err := secretbox.LoadKey(m.keyPath)
+			if err != nil {
+				return err
+			}
+			key = k
+		}
+		plain, err := secretbox.Open(key, *v)
+		if err != nil {
+			return fmt.Errorf("decrypt %s of %q in %s: %w", field, alias, m.filePath, err)
+		}
+		*v = plain
+		return nil
+	}
+	for alias, meta := range metadata {
+		if err := open(alias, "private_key", &meta.PrivateKey); err != nil {
+			return err
+		}
+		if err := open(alias, "password", &meta.Password); err != nil {
+			return err
+		}
+		metadata[alias] = meta
+	}
+	return nil
+}
+
+// marshalSealed encodes metadata with every non-empty secret sealed, creating the master key if needed.
+func (m *metadataManager) marshalSealed(metadata map[string]ServerMetadata) ([]byte, error) {
+	var key []byte
+	seal := func(v *string) error {
+		if *v == "" {
+			return nil
+		}
+		if key == nil {
+			k, err := secretbox.LoadOrCreateKey(m.keyPath)
+			if err != nil {
+				return err
+			}
+			key = k
+		}
+		sealed, err := secretbox.Seal(key, *v)
+		if err != nil {
+			return err
+		}
+		*v = sealed
+		return nil
+	}
+	out := make(map[string]ServerMetadata, len(metadata))
+	for alias, meta := range metadata {
+		if err := seal(&meta.PrivateKey); err != nil {
+			return nil, err
+		}
+		if err := seal(&meta.Password); err != nil {
+			return nil, err
+		}
+		out[alias] = meta
+	}
+	return json.MarshalIndent(out, "", "  ")
 }
 
 func (m *metadataManager) saveAll(metadata map[string]ServerMetadata) error {
@@ -73,7 +150,7 @@ func (m *metadataManager) saveAll(metadata map[string]ServerMetadata) error {
 		return fmt.Errorf("ensure metadata directory for '%s': %w", m.filePath, err)
 	}
 
-	data, err := json.MarshalIndent(metadata, "", "  ")
+	data, err := m.marshalSealed(metadata)
 	if err != nil {
 		m.logger.Errorw("failed to marshal metadata", "path", m.filePath, "error", err)
 		return fmt.Errorf("marshal metadata for '%s': %w", m.filePath, err)
@@ -106,6 +183,7 @@ func (m *metadataManager) updateServer(server domain.Server, oldAlias string) er
 
 	merged.Tags = server.Tags
 	merged.PrivateKey = server.PrivateKey
+	merged.Password = server.Password
 
 	if !server.LastSeen.IsZero() {
 		merged.LastSeen = server.LastSeen.Format(time.RFC3339)

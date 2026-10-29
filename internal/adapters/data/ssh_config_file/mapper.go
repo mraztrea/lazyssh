@@ -300,6 +300,7 @@ func (r *Repository) mergeMetadata(servers []domain.Server, metadata map[string]
 			servers[i].Tags = meta.Tags
 			servers[i].SSHCount = meta.SSHCount
 			servers[i].PrivateKey = meta.PrivateKey
+			servers[i].Password = meta.Password
 
 			if meta.LastSeen != "" {
 				if lastSeen, err := time.Parse(time.RFC3339, meta.LastSeen); err == nil {

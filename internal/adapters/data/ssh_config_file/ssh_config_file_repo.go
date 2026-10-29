@@ -65,8 +65,7 @@ func (r *Repository) ListServers(query string) ([]domain.Server, error) {
 	servers := r.toDomainServer(cfg)
 	metadata, err := r.metadataManager.loadAll()
 	if err != nil {
-		r.logger.Warnf("Failed to load metadata: %v", err)
-		metadata = make(map[string]ServerMetadata)
+		return nil, fmt.Errorf("load metadata: %w", err)
 	}
 	servers = r.mergeMetadata(servers, metadata)
 	for _, s := range servers {
@@ -211,4 +210,13 @@ func (r *Repository) SetPinned(alias string, pinned bool) error {
 // RecordSSH increments the SSH access count and updates the last seen timestamp for a server.
 func (r *Repository) RecordSSH(alias string) error {
 	return r.metadataManager.recordSSH(alias)
+}
+
+// GetPassword returns the stored password for alias ("" if none). It only reads metadata.json.
+func (r *Repository) GetPassword(alias string) (string, error) {
+	metadata, err := r.metadataManager.loadAll()
+	if err != nil {
+		return "", err
+	}
+	return metadata[alias].Password, nil
 }

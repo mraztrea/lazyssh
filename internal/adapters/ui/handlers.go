@@ -584,7 +584,10 @@ func (t *tui) refreshServerList() {
 	if t.searchBar != nil {
 		query = t.searchBar.InputField.GetText()
 	}
-	filtered, _ := t.serverService.ListServers(query)
+	filtered, err := t.serverService.ListServers(query)
+	if err != nil {
+		t.showStatusTempColor(err.Error(), "#FF6B6B")
+	}
 	sortServersForUI(filtered, t.sortMode)
 	t.serverList.UpdateServers(filtered)
 }
