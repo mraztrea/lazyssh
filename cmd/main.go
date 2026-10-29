@@ -16,6 +16,7 @@ package main
 
 import (
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 
@@ -29,6 +30,7 @@ import (
 	"github.com/Adembc/lazyssh/internal/adapters/ui"
 	"github.com/Adembc/lazyssh/internal/core/services"
 	"github.com/spf13/cobra"
+	"go.uber.org/zap"
 )
 
 var (
@@ -37,6 +39,10 @@ var (
 )
 
 func main() {
+	if alias := os.Getenv("LAZYSSH_ASKPASS_ALIAS"); alias != "" {
+		os.Exit(runAskpass(alias))
+	}
+
 	log, err := logger.New("LAZYSSH")
 	if err != nil {
 		fmt.Println(err)
@@ -75,6 +81,24 @@ func main() {
 		_, _ = fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
+}
+
+// runAskpass answers one ssh askpass prompt for alias (contracts/askpass.md): no logger, no TUI,
+// no writes.
+func runAskpass(alias string) int {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		_, _ = fmt.Fprintln(os.Stderr, "lazyssh askpass:", err)
+		return 1
+	}
+	repo := ssh_config_file.NewRepository(zap.NewNop().Sugar(),
+		filepath.Join(home, ".ssh", "config"), filepath.Join(home, ".lazyssh", "metadata.json"))
+	prompt := ""
+	if len(os.Args) > 1 {
+		prompt = os.Args[1]
+	}
+	openTTY := func() (io.ReadWriteCloser, error) { return os.OpenFile("/dev/tty", os.O_RDWR, 0) }
+	return services.Askpass(repo.GetPassword, services.ResolveUserHost, alias, prompt, os.Stdout, openTTY)
 }
 
 // backendFor picks the sync backend for the configured provider.

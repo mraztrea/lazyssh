@@ -15,9 +15,11 @@
 package services
 
 import (
+	"bytes"
 	"crypto/rand"
 	"encoding/base64"
 	"errors"
+	"io"
 	"reflect"
 	"slices"
 	"strings"
@@ -156,5 +158,117 @@ func TestSSHCmd_OptionsBeforeDestination(t *testing.T) {
 		if !reflect.DeepEqual(cmd.Args, want) || cmd.Env != nil {
 			t.Errorf("%s without password: args = %v env=%v, want %v", c.name, cmd.Args, cmd.Env != nil, want)
 		}
+	}
+}
+
+// memTTY is an in-memory /dev/tty: reads come from in, writes are recorded.
+type memTTY struct {
+	in      *strings.Reader
+	written bytes.Buffer
+	closed  bool
+}
+
+func (m *memTTY) Read(p []byte) (int, error)  { return m.in.Read(p) }
+func (m *memTTY) Write(p []byte) (int, error) { return m.written.Write(p) }
+func (m *memTTY) Close() error                { m.closed = true; return nil }
+
+func ttyWith(input string) (*memTTY, func() (io.ReadWriteCloser, error)) {
+	m := &memTTY{in: strings.NewReader(input)}
+	return m, func() (io.ReadWriteCloser, error) { return m, nil }
+}
+
+func noTTY() (io.ReadWriteCloser, error) { return nil, errors.New("open /dev/tty: no such device") }
+
+func aliceHost(string) (string, string, error) { return "alice", "10.0.0.5", nil }
+
+func runAskpass(t *testing.T, lookup func(string) (string, error), userHost func(string) (string, string, error), prompt string, tty func() (io.ReadWriteCloser, error)) (int, string) {
+	t.Helper()
+	var out bytes.Buffer
+	code := Askpass(lookup, userHost, "web", prompt, &out, tty)
+	return code, out.String()
+}
+
+func TestAskpass_PrintsPasswordForTargetPrompt(t *testing.T) {
+	pw := randomPassword(t)
+	code, out := runAskpass(t, lookupOf(pw, nil), aliceHost, "alice@10.0.0.5's password: ", noTTY)
+	if code != 0 || out != pw+"\n" {
+		t.Fatalf("code=%d, password not printed", code)
+	}
+}
+
+func TestAskpass_KeyboardInteractivePromptAnswered(t *testing.T) {
+	pw := randomPassword(t)
+	code, out := runAskpass(t, lookupOf(pw, nil), aliceHost, "(alice@10.0.0.5) Password: ", noTTY)
+	if code != 0 || out != pw+"\n" {
+		t.Fatalf("code=%d, password not printed", code)
+	}
+}
+
+func TestAskpass_OtherHostPromptNotAnswered(t *testing.T) {
+	pw := randomPassword(t)
+	prompt := "bob@jump's password: "
+	tty, open := ttyWith("typed\n")
+	code, out := runAskpass(t, lookupOf(pw, nil), aliceHost, prompt, open)
+	if code != 0 || out != "typed\n" {
+		t.Fatalf("code=%d out=%q", code, out)
+	}
+	if tty.written.String() != prompt || !tty.closed {
+		t.Fatalf("prompt not relayed to tty: %q", tty.written.String())
+	}
+	if strings.Contains(out, pw) || strings.Contains(tty.written.String(), pw) {
+		t.Fatal("password sent to another host")
+	}
+}
+
+func TestAskpass_HostKeyPromptRelayed(t *testing.T) {
+	prompt := "Are you sure you want to continue connecting (yes/no/[fingerprint])? "
+	tty, open := ttyWith("yes\r\n")
+	code, out := runAskpass(t, lookupOf(randomPassword(t), nil), aliceHost, prompt, open)
+	if code != 0 || out != "yes\n" || tty.written.String() != prompt {
+		t.Fatalf("code=%d out=%q tty=%q", code, out, tty.written.String())
+	}
+}
+
+func TestAskpass_NoTTYExitsNonZero(t *testing.T) {
+	code, out := runAskpass(t, lookupOf(randomPassword(t), nil), aliceHost, "Enter OTP: ", noTTY)
+	if code != 1 || out != "" {
+		t.Fatalf("code=%d out=%q", code, out)
+	}
+}
+
+func TestAskpass_UnknownAliasExitsNonZero(t *testing.T) {
+	known := map[string]string{"other": "x"}
+	lookup := func(a string) (string, error) { return known[a], nil }
+	code, out := runAskpass(t, lookup, aliceHost, "alice@10.0.0.5's password: ", noTTY)
+	if code != 1 || out != "" {
+		t.Fatalf("code=%d out=%q", code, out)
+	}
+}
+
+func TestAskpass_NoPasswordExitsNonZero(t *testing.T) {
+	code, out := runAskpass(t, lookupOf("", nil), aliceHost, "alice@10.0.0.5's password: ", noTTY)
+	if code != 1 || out != "" {
+		t.Fatalf("code=%d out=%q", code, out)
+	}
+}
+
+func TestAskpass_LookupErrorExitsNonZeroWithoutSecret(t *testing.T) {
+	pw := randomPassword(t)
+	code, out := runAskpass(t, lookupOf(pw, errors.New("master key /h/.lazyssh/master.key is corrupt")), aliceHost, "alice@10.0.0.5's password: ", noTTY)
+	if code != 1 || out != "" {
+		t.Fatalf("code=%d out=%q", code, out)
+	}
+}
+
+func TestAskpass_UserHostErrorRelays(t *testing.T) {
+	pw := randomPassword(t)
+	failing := func(string) (string, string, error) { return "", "", errors.New("ssh -G failed") }
+	tty, open := ttyWith("typed\n")
+	code, out := runAskpass(t, lookupOf(pw, nil), failing, "alice@10.0.0.5's password: ", open)
+	if code != 0 || out != "typed\n" || tty.written.Len() == 0 {
+		t.Fatalf("code=%d out=%q", code, out)
+	}
+	if strings.Contains(out, pw) {
+		t.Fatal("password printed without a resolved destination")
 	}
 }

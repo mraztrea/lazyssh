@@ -93,3 +93,20 @@ func TestValidateServer_PasswordNewlineRejected(t *testing.T) {
 		t.Errorf("spaced password rejected: %v", err)
 	}
 }
+
+func TestParseSSHG_UserHostKeyAlias(t *testing.T) {
+	out := "user alice\nhostname 10.0.0.5\nport 2222\nhostkeyalias web.example\n"
+	cfg := parseSSHG(out)
+	if cfg["port"] != "2222" {
+		t.Fatalf("port = %q", cfg["port"])
+	}
+	if u, h := userHostOf(cfg); u != "alice" || h != "web.example" {
+		t.Fatalf("got %s@%s, want hostkeyalias to win", u, h)
+	}
+	for _, alias := range []string{"none", ""} {
+		cfg = parseSSHG("user alice\nhostname 10.0.0.5\nhostkeyalias " + alias + "\n")
+		if u, h := userHostOf(cfg); u != "alice" || h != "10.0.0.5" {
+			t.Fatalf("hostkeyalias %q: got %s@%s", alias, u, h)
+		}
+	}
+}

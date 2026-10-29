@@ -396,26 +396,9 @@ func resolveSSHDestination(alias string) (string, int, bool) {
 	if err != nil {
 		return "", 0, false
 	}
-	host := ""
-	port := 0
-	scanner := bufio.NewScanner(strings.NewReader(string(out)))
-	for scanner.Scan() {
-		line := scanner.Text()
-		if strings.HasPrefix(line, "hostname ") {
-			parts := strings.Fields(line)
-			if len(parts) >= 2 {
-				host = parts[1]
-			}
-		}
-		if strings.HasPrefix(line, "port ") {
-			parts := strings.Fields(line)
-			if len(parts) >= 2 {
-				if p, err := strconv.Atoi(parts[1]); err == nil {
-					port = p
-				}
-			}
-		}
-	}
+	cfg := parseSSHG(string(out))
+	host := cfg["hostname"]
+	port, _ := strconv.Atoi(cfg["port"])
 	if host == "" {
 		host = alias
 	}
@@ -423,4 +406,38 @@ func resolveSSHDestination(alias string) (string, int, bool) {
 		port = 22
 	}
 	return host, port, true
+}
+
+// parseSSHG maps each `key value` line of `ssh -G` output to its first value.
+func parseSSHG(out string) map[string]string {
+	cfg := make(map[string]string)
+	scanner := bufio.NewScanner(strings.NewReader(out))
+	for scanner.Scan() {
+		if parts := strings.Fields(scanner.Text()); len(parts) >= 2 {
+			if _, seen := cfg[parts[0]]; !seen {
+				cfg[parts[0]] = parts[1]
+			}
+		}
+	}
+	return cfg
+}
+
+// userHostOf returns the user and the host name ssh puts in its password prompt.
+func userHostOf(cfg map[string]string) (user, host string) {
+	host = cfg["hostname"]
+	if a := cfg["hostkeyalias"]; a != "" && a != "none" {
+		host = a
+	}
+	return cfg["user"], host
+}
+
+// ResolveUserHost returns the user@host that ssh shows in alias's password prompt (via `ssh -G`).
+func ResolveUserHost(alias string) (user, host string, err error) {
+	// #nosec G204
+	out, err := exec.Command("ssh", "-G", "--", alias).Output()
+	if err != nil {
+		return "", "", fmt.Errorf("ssh -G %s: %w", alias, err)
+	}
+	user, host = userHostOf(parseSSHG(string(out)))
+	return user, host, nil
 }
