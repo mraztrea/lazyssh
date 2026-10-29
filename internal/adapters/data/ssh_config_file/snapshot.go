@@ -16,6 +16,8 @@ package ssh_config_file
 
 import (
 	"bytes"
+	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -23,6 +25,7 @@ import (
 
 	"github.com/Adembc/lazyssh/internal/core/domain"
 	"github.com/Adembc/lazyssh/internal/core/ports"
+	"github.com/Adembc/lazyssh/internal/secretbox"
 )
 
 var (
@@ -30,7 +33,8 @@ var (
 	_ ports.SnapshotRepository = (*Repository)(nil)
 )
 
-// Export returns the raw SSH config and metadata as a sync bundle.
+// Export returns the raw SSH config and the decrypted metadata as a sync bundle (the bundle itself
+// is encrypted by the sync service).
 func (r *Repository) Export() (domain.SyncBundle, error) {
 	b := domain.SyncBundle{Version: domain.SyncBundleVersion, ExportedAt: time.Now().UTC()}
 	b.Hostname, _ = os.Hostname()
@@ -48,23 +52,34 @@ func (r *Repository) Export() (domain.SyncBundle, error) {
 		return b, fmt.Errorf("open ssh config: %w", err)
 	}
 
-	meta, err := os.ReadFile(r.metadataManager.filePath)
-	if err != nil && !os.IsNotExist(err) {
-		return b, fmt.Errorf("read metadata: %w", err)
+	meta, err := r.metadataManager.loadAll()
+	if err != nil {
+		return b, fmt.Errorf("load metadata: %w", err)
 	}
-	if len(bytes.TrimSpace(meta)) == 0 {
-		meta = []byte("{}")
+	if b.Metadata, err = json.Marshal(meta); err != nil {
+		return b, fmt.Errorf("marshal metadata: %w", err)
 	}
-	b.Metadata = meta
 	return b, nil
 }
 
-// Import replaces the SSH config (after the usual backups) and the metadata file with the bundle.
+// Import replaces the SSH config (after the usual backups) and the metadata file with the bundle,
+// sealing its plaintext secrets with this machine's master key.
 // ponytail: two separate atomic renames, not one transaction; a crash between them leaves new
 // config with old metadata. Pull again to recover.
 func (r *Repository) Import(b domain.SyncBundle) error {
 	if b.Version != domain.SyncBundleVersion {
 		return fmt.Errorf("unsupported sync bundle version %d", b.Version)
+	}
+	meta := make(map[string]ServerMetadata)
+	if len(bytes.TrimSpace(b.Metadata)) > 0 {
+		if err := json.Unmarshal(b.Metadata, &meta); err != nil {
+			return fmt.Errorf("parse sync bundle metadata: %w", err)
+		}
+	}
+	for _, m := range meta {
+		if secretbox.IsSealed(m.PrivateKey) || secretbox.IsSealed(m.Password) {
+			return errors.New("sync bundle contains encrypted values from another machine")
+		}
 	}
 	if err := r.saveRawConfig(b.SSHConfig); err != nil {
 		return err
@@ -73,9 +88,13 @@ func (r *Repository) Import(b domain.SyncBundle) error {
 	if err := r.metadataManager.ensureDirectory(); err != nil {
 		return err
 	}
+	data, err := r.metadataManager.marshalSealed(meta)
+	if err != nil {
+		return fmt.Errorf("seal metadata: %w", err)
+	}
 	path := r.metadataManager.filePath
 	tmp := path + TempSuffix
-	if err := os.WriteFile(tmp, b.Metadata, 0o600); err != nil {
+	if err := os.WriteFile(tmp, data, 0o600); err != nil {
 		return fmt.Errorf("write metadata: %w", err)
 	}
 	if err := os.Rename(tmp, path); err != nil {
