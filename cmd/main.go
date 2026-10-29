@@ -59,7 +59,7 @@ func main() {
 	serverService := services.NewServerService(log, serverRepo)
 	settingsRepo := settings_file.NewRepository(filepath.Join(home, ".lazyssh", "settings.json"))
 	syncService := services.NewSyncService(log, settingsRepo, serverRepo, backendFor)
-	sftpService := services.NewSFTPService(log)
+	sftpService := services.NewSFTPService(log, serverRepo.GetPassword)
 	tui := ui.NewTUI(log, serverService, syncService, sftpService, version, gitCommit)
 
 	rootCmd := &cobra.Command{

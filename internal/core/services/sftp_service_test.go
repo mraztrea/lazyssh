@@ -28,8 +28,8 @@ import (
 )
 
 // helperCmd re-runs the test binary as a fake `ssh -s sftp` (see TestHelperProcess).
-func helperCmd(mode string) func(alias string) *exec.Cmd {
-	return func(string) *exec.Cmd {
+func helperCmd(mode string) func(alias string, authArgs []string) *exec.Cmd {
+	return func(string, []string) *exec.Cmd {
 		cmd := exec.Command(os.Args[0], "-test.run=^TestHelperProcess$")
 		cmd.Env = append(os.Environ(), "GO_WANT_SFTP_HELPER="+mode)
 		return cmd
@@ -58,7 +58,7 @@ func TestHelperProcess(t *testing.T) {
 }
 
 func TestConnect_ListsDirectoryAndCloses(t *testing.T) {
-	svc := newSFTPServiceWithCmd(zap.NewNop().Sugar(), helperCmd("1"))
+	svc := newSFTPServiceWithCmd(zap.NewNop().Sugar(), noPassword, helperCmd("1"))
 	sess, err := svc.Connect("any")
 	if err != nil {
 		t.Fatal(err)
@@ -80,7 +80,7 @@ func TestConnect_ListsDirectoryAndCloses(t *testing.T) {
 }
 
 func TestConnect_ProcessExitReturnsError(t *testing.T) {
-	svc := newSFTPServiceWithCmd(zap.NewNop().Sugar(), helperCmd("fail"))
+	svc := newSFTPServiceWithCmd(zap.NewNop().Sugar(), noPassword, helperCmd("fail"))
 	done := make(chan error, 1)
 	go func() {
 		sess, err := svc.Connect("any")
@@ -104,9 +104,23 @@ func TestConnect_ProcessExitReturnsError(t *testing.T) {
 
 func TestNewSFTPService_RequestsSubsystemAfterAlias(t *testing.T) {
 	// OpenSSH's -s takes no argument: the host comes first, then the subsystem name.
-	svc := NewSFTPService(zap.NewNop().Sugar()).(*sftpService)
-	got := strings.Join(svc.cmdFor("web-1").Args, " ")
+	svc := NewSFTPService(zap.NewNop().Sugar(), noPassword).(*sftpService)
+	got := strings.Join(svc.cmdFor("web-1", nil).Args, " ")
 	if want := "ssh -s -- web-1 sftp"; got != want {
 		t.Fatalf("args = %q, want %q", got, want)
+	}
+}
+
+func noPassword(string) (string, error) { return "", nil }
+
+func TestSFTPCmd_PasswordServer(t *testing.T) {
+	svc := NewSFTPService(zap.NewNop().Sugar(), noPassword).(*sftpService)
+	got := strings.Join(svc.cmdFor("web-1", authOpts).Args, " ")
+	want := "ssh -o PreferredAuthentications=password,keyboard-interactive -o NumberOfPasswordPrompts=1 -s -- web-1 sftp"
+	if got != want {
+		t.Fatalf("args = %q, want %q", got, want)
+	}
+	if got := strings.Join(svc.cmdFor("web-1", nil).Args, " "); got != "ssh -s -- web-1 sftp" {
+		t.Fatalf("args = %q", got)
 	}
 }

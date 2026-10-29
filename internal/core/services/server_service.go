@@ -111,6 +111,9 @@ func validateServer(srv domain.Server) error {
 	if srv.Port != 0 && (srv.Port < 1 || srv.Port > 65535) {
 		return fmt.Errorf("port must be a number between 1 and 65535")
 	}
+	if strings.ContainsAny(srv.Password, "\r\n") {
+		return fmt.Errorf("password must be a single line")
+	}
 	if key := normalizePrivateKey(srv.PrivateKey); key != "" {
 		if _, err := ssh.ParseRawPrivateKey([]byte(key)); err != nil {
 			var missing *ssh.PassphraseMissingError
@@ -178,10 +181,28 @@ func (s *serverService) SetPinned(alias string, pinned bool) error {
 	return err
 }
 
+// sshCmd builds `ssh <pre> [password auth opts] <post> <alias>`; for servers with a stored
+// password it adds askpass env so ssh gets the password from lazyssh, never via argv or env.
+func (s *serverService) sshCmd(alias string, pre, post []string) (*exec.Cmd, error) {
+	authArgs, env, err := passwordAuth(s.serverRepository.GetPassword, alias)
+	if err != nil {
+		return nil, err
+	}
+	args := append(append(append(append([]string{}, pre...), authArgs...), post...), alias)
+	// #nosec G204
+	cmd := exec.Command("ssh", args...)
+	cmd.Env = env
+	return cmd, nil
+}
+
 // SSH starts an interactive SSH session to the given alias using the system's ssh client.
 func (s *serverService) SSH(alias string) error {
 	s.logger.Infow("ssh start", "alias", alias)
-	cmd := exec.Command("ssh", alias)
+	cmd, err := s.sshCmd(alias, nil, nil)
+	if err != nil {
+		s.logger.Errorw("ssh password lookup failed", "alias", alias, "error", err)
+		return err
+	}
 	cmd.Stdin = os.Stdin
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
@@ -201,10 +222,11 @@ func (s *serverService) SSH(alias string) error {
 // SSHWithArgs runs system ssh with provided extra args (e.g., -L/-R/-D) for the given alias.
 func (s *serverService) SSHWithArgs(alias string, extraArgs []string) error {
 	s.logger.Infow("ssh start (with args)", "alias", alias, "args", extraArgs)
-	args := append([]string{}, extraArgs...)
-	args = append(args, alias)
-	// #nosec G204
-	cmd := exec.Command("ssh", args...)
+	cmd, err := s.sshCmd(alias, extraArgs, nil)
+	if err != nil {
+		s.logger.Errorw("ssh password lookup failed", "alias", alias, "error", err)
+		return err
+	}
 	cmd.Stdin = os.Stdin
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
@@ -227,10 +249,10 @@ func (s *serverService) StartForward(alias string, extraArgs []string) (int, err
 	}
 	s.fwMu.Unlock()
 
-	extraArgs = append(extraArgs, "-N", alias)
-
-	// #nosec G204
-	cmd := exec.Command("ssh", extraArgs...)
+	cmd, err := s.sshCmd(alias, extraArgs, []string{"-N"})
+	if err != nil {
+		return 0, err
+	}
 
 	// Detach from TTY: discard stdio
 	devNull, err := os.OpenFile(os.DevNull, os.O_RDWR, 0)

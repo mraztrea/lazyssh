@@ -30,25 +30,35 @@ const stderrTailSize = 4 << 10
 
 // ponytail: subprocess transport. Upgrade to golang.org/x/crypto/ssh only if an in-process client is ever required.
 type sftpService struct {
-	logger *zap.SugaredLogger
-	cmdFor func(alias string) *exec.Cmd
+	logger   *zap.SugaredLogger
+	password func(alias string) (string, error)
+	cmdFor   func(alias string, authArgs []string) *exec.Cmd
 }
 
 // NewSFTPService opens SFTP sessions by running `ssh -s -- <alias> sftp`, so the user's SSH config
 // applies. -s takes no argument (host first, then subsystem); "--" keeps an alias from being read as
-// an option.
-func NewSFTPService(logger *zap.SugaredLogger) ports.SFTPService {
-	return newSFTPServiceWithCmd(logger, func(alias string) *exec.Cmd {
-		return exec.Command("ssh", "-s", "--", alias, "sftp")
+// an option. password looks up a stored password ("" if none) for askpass.
+func NewSFTPService(logger *zap.SugaredLogger, password func(alias string) (string, error)) ports.SFTPService {
+	return newSFTPServiceWithCmd(logger, password, func(alias string, authArgs []string) *exec.Cmd {
+		args := append(append([]string{}, authArgs...), "-s", "--", alias, "sftp")
+		// #nosec G204
+		return exec.Command("ssh", args...)
 	})
 }
 
-func newSFTPServiceWithCmd(logger *zap.SugaredLogger, cmdFor func(alias string) *exec.Cmd) ports.SFTPService {
-	return &sftpService{logger: logger, cmdFor: cmdFor}
+func newSFTPServiceWithCmd(logger *zap.SugaredLogger, password func(alias string) (string, error), cmdFor func(alias string, authArgs []string) *exec.Cmd) ports.SFTPService {
+	return &sftpService{logger: logger, password: password, cmdFor: cmdFor}
 }
 
 func (s *sftpService) Connect(alias string) (ports.SFTPSession, error) {
-	cmd := s.cmdFor(alias)
+	authArgs, env, err := passwordAuth(s.password, alias)
+	if err != nil {
+		return nil, fmt.Errorf("sftp %s: %w", alias, err)
+	}
+	cmd := s.cmdFor(alias, authArgs)
+	if env != nil {
+		cmd.Env = env
+	}
 	stdin, err := cmd.StdinPipe()
 	if err != nil {
 		return nil, err

@@ -77,3 +77,19 @@ func TestNormalizePrivateKey(t *testing.T) {
 		t.Fatalf("got %q", got)
 	}
 }
+
+func TestValidateServer_PasswordNewlineRejected(t *testing.T) {
+	base := domain.Server{Alias: "a", Host: "1.2.3.4"}
+	for _, pw := range []string{"a\nb", "a\rb"} {
+		s := base
+		s.Password = pw
+		if err := validateServer(s); err == nil || err.Error() != "password must be a single line" {
+			t.Errorf("multi-line password: got %v", err)
+		}
+	}
+	s := base
+	s.Password = " spaced "
+	if err := validateServer(s); err != nil {
+		t.Errorf("spaced password rejected: %v", err)
+	}
+}
