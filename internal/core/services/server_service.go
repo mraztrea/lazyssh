@@ -186,22 +186,36 @@ func (s *serverService) SetPinned(alias string, pinned bool) error {
 
 // sshCmd builds `ssh <pre> [password auth opts] <post> <alias>`; for servers with a stored
 // password it adds askpass env so ssh gets the password from lazyssh, never via argv or env.
-func (s *serverService) sshCmd(alias string, pre, post []string) (*exec.Cmd, error) {
+// sshArgs builds ssh's argv. A non-empty remote command runs on a TTY and overrides any
+// RemoteCommand from ssh config (ssh refuses to run both).
+func sshArgs(alias string, authArgs, pre, post []string, remote string) []string {
+	var args []string
+	if remote != "" {
+		args = append(args, "-o", "RemoteCommand=none", "-t")
+	}
+	args = append(append(append(append(args, pre...), authArgs...), post...), alias)
+	if remote != "" {
+		args = append(args, remote)
+	}
+	return args
+}
+
+func (s *serverService) sshCmd(alias string, pre, post []string, remote string) (*exec.Cmd, error) {
 	authArgs, env, err := passwordAuth(s.serverRepository.GetPassword, alias)
 	if err != nil {
 		return nil, err
 	}
-	args := append(append(append(append([]string{}, pre...), authArgs...), post...), alias)
 	// #nosec G204
-	cmd := exec.Command("ssh", args...)
+	cmd := exec.Command("ssh", sshArgs(alias, authArgs, pre, post, remote)...)
 	cmd.Env = env
 	return cmd, nil
 }
 
 // SSH starts an interactive SSH session to the given alias using the system's ssh client.
-func (s *serverService) SSH(alias string) error {
+func (s *serverService) SSH(server domain.Server) error {
+	alias := server.Alias
 	s.logger.Infow("ssh start", "alias", alias)
-	cmd, err := s.sshCmd(alias, nil, nil)
+	cmd, err := s.sshCmd(alias, nil, nil, HomeDirCommand(server))
 	if err != nil {
 		s.logger.Errorw("ssh password lookup failed", "alias", alias, "error", err)
 		return err
@@ -223,9 +237,10 @@ func (s *serverService) SSH(alias string) error {
 }
 
 // SSHWithArgs runs system ssh with provided extra args (e.g., -L/-R/-D) for the given alias.
-func (s *serverService) SSHWithArgs(alias string, extraArgs []string) error {
+func (s *serverService) SSHWithArgs(server domain.Server, extraArgs []string) error {
+	alias := server.Alias
 	s.logger.Infow("ssh start (with args)", "alias", alias, "args", extraArgs)
-	cmd, err := s.sshCmd(alias, extraArgs, nil)
+	cmd, err := s.sshCmd(alias, extraArgs, nil, HomeDirCommand(server))
 	if err != nil {
 		s.logger.Errorw("ssh password lookup failed", "alias", alias, "error", err)
 		return err
@@ -252,7 +267,7 @@ func (s *serverService) StartForward(alias string, extraArgs []string) (int, err
 	}
 	s.fwMu.Unlock()
 
-	cmd, err := s.sshCmd(alias, extraArgs, []string{"-N"})
+	cmd, err := s.sshCmd(alias, extraArgs, []string{"-N"}, "")
 	if err != nil {
 		return 0, err
 	}

@@ -18,6 +18,7 @@ import (
 	"crypto/ed25519"
 	"crypto/rand"
 	"encoding/pem"
+	"slices"
 	"strings"
 	"testing"
 
@@ -124,5 +125,20 @@ func TestValidateServer_HomeDirSingleLine(t *testing.T) {
 	s.HomeDir = "/var/www"
 	if err := validateServer(s); err != nil {
 		t.Errorf("home dir rejected: %v", err)
+	}
+}
+
+func TestSSHArgs(t *testing.T) {
+	auth := []string{"-o", "A"}
+	pre := []string{"-L", "1:2:3"}
+	post := []string{"-N"}
+	got := sshArgs("h", auth, pre, post, "")
+	if want := []string{"-L", "1:2:3", "-o", "A", "-N", "h"}; !slices.Equal(got, want) {
+		t.Errorf("no remote: got %q, want %q", got, want)
+	}
+	remote := `cd '/x'; exec "$SHELL" -l`
+	got = sshArgs("h", auth, pre, post, remote)
+	if want := []string{"-o", "RemoteCommand=none", "-t", "-L", "1:2:3", "-o", "A", "-N", "h", remote}; !slices.Equal(got, want) {
+		t.Errorf("with remote: got %q, want %q", got, want)
 	}
 }

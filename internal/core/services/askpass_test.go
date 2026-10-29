@@ -98,7 +98,7 @@ func TestPasswordAuth_SecretNotInArgsOrEnv(t *testing.T) {
 	}
 
 	s := &serverService{logger: zap.NewNop().Sugar(), serverRepository: pwRepo{pw: pw}}
-	cmd, err := s.sshCmd("web", []string{"-L", "1:h:2"}, []string{"-N"})
+	cmd, err := s.sshCmd("web", []string{"-L", "1:h:2"}, []string{"-N"}, "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -118,7 +118,7 @@ func TestPasswordAuth_LookupErrorAborts(t *testing.T) {
 	}
 
 	s := &serverService{logger: zap.NewNop().Sugar(), serverRepository: pwRepo{err: boom}}
-	if cmd, err := s.sshCmd("web", nil, nil); !errors.Is(err, boom) || cmd != nil {
+	if cmd, err := s.sshCmd("web", nil, nil, ""); !errors.Is(err, boom) || cmd != nil {
 		t.Fatalf("sshCmd did not abort: %v", err)
 	}
 }
@@ -137,7 +137,7 @@ func TestSSHCmd_OptionsBeforeDestination(t *testing.T) {
 	}
 	for _, c := range cases {
 		pw := &serverService{logger: zap.NewNop().Sugar(), serverRepository: pwRepo{pw: randomPassword(t)}}
-		cmd, err := pw.sshCmd("web", c.pre, c.post)
+		cmd, err := pw.sshCmd("web", c.pre, c.post, "")
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -150,7 +150,7 @@ func TestSSHCmd_OptionsBeforeDestination(t *testing.T) {
 		}
 
 		plain := &serverService{logger: zap.NewNop().Sugar(), serverRepository: pwRepo{}}
-		cmd, err = plain.sshCmd("web", c.pre, c.post)
+		cmd, err = plain.sshCmd("web", c.pre, c.post, "")
 		if err != nil {
 			t.Fatal(err)
 		}
