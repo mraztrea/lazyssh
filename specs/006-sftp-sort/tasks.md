@@ -69,9 +69,9 @@ có `s Sort`, `S Reverse`.
 
 **Kiểm thử độc lập**: quickstart.md mục "Thủ công" bước 1–8.
 
-- [ ] T011 [US1] Trong internal/adapters/ui/sftp_view.go: method `sortBy(s paneSort)` (`fm.active.SetSort(s)`, `fm.info("Sort: " + s.String())`); map rune của `handleKey` thêm `'s'` → `sortBy(paneSort{!cur.byTime, cur.desc})`, `'S'` → `sortBy(paneSort{cur.byTime, !cur.desc})` với `cur := fm.active.sort`; `fileManagerHints` thêm `[white]s[-] Sort  • [white]S[-] Reverse`
-- [ ] T012 Chạy `go build ./...`, `go vet ./...`, `gofmt -l .`, `go test -race ./...`; xác nhận PASS; kiểm phím bằng test tạm gửi `s`/`S` vào `handleKey` (xoá sau khi chạy) hoặc các bước thủ công trong quickstart.md nếu có terminal
-- [ ] T013 Commit `feat: add s/S sort keys to sftp file manager` (sftp_view.go, tasks.md)
+- [X] T011 [US1] Trong internal/adapters/ui/sftp_view.go: method `sortBy(s paneSort)` (`fm.active.SetSort(s)`, `fm.info("Sort: " + s.String())`); map rune của `handleKey` thêm `'s'` → `sortBy(paneSort{!cur.byTime, cur.desc})`, `'S'` → `sortBy(paneSort{cur.byTime, !cur.desc})` với `cur := fm.active.sort`; `fileManagerHints` thêm `[white]s[-] Sort  • [white]S[-] Reverse`
+- [X] T012 Chạy `go build ./...`, `go vet ./...`, `gofmt -l .`, `go test -race ./...`; xác nhận PASS; kiểm phím bằng test tạm gửi `s`/`S` vào `handleKey` (xoá sau khi chạy) hoặc các bước thủ công trong quickstart.md nếu có terminal
+- [X] T013 Commit `feat: add s/S sort keys to sftp file manager` (sftp_view.go, tasks.md)
 
 ---
 

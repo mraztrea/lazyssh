@@ -31,7 +31,7 @@ import (
 )
 
 const (
-	fileManagerHints = "[white]Tab[-] Switch  • [white]Enter[-] Open  • [white]h[-] Up  • [white]u[-] Upload  • [white]d[-] Download  • [white]n[-] Mkdir  • [white]r[-] Rename  • [white]D[-] Delete  • [white]R[-] Refresh  • [white]g[-] Go to  • [white]/[-] Filter  • [white]q[-] Close"
+	fileManagerHints = "[white]Tab[-] Switch  • [white]Enter[-] Open  • [white]h[-] Up  • [white]u[-] Upload  • [white]d[-] Download  • [white]n[-] Mkdir  • [white]r[-] Rename  • [white]D[-] Delete  • [white]R[-] Refresh  • [white]g[-] Go to  • [white]/[-] Filter  • [white]s[-] Sort  • [white]S[-] Reverse  • [white]q[-] Close"
 	colorError       = "#FF6B6B"
 	colorOK          = "#A0FFA0"
 	progressInterval = 100 * time.Millisecond
@@ -154,6 +154,7 @@ func (fm *fileManager) handleKey(ev *tcell.EventKey) *tcell.EventKey {
 		return ev // the layout sees keys first; while filtering they are text
 	}
 	up := func() { fm.open(fm.active, fm.active.ParentDir()) }
+	cur := fm.active.sort
 	var action func()
 	if ev.Key() == tcell.KeyRune {
 		action = map[rune]func(){
@@ -166,6 +167,8 @@ func (fm *fileManager) handleKey(ev *tcell.EventKey) *tcell.EventKey {
 			'R': fm.refresh,
 			'g': fm.goTo,
 			'/': fm.startFilter,
+			's': func() { fm.sortBy(paneSort{!cur.byTime, cur.desc}) },
+			'S': func() { fm.sortBy(paneSort{cur.byTime, !cur.desc}) },
 			'q': fm.close,
 		}[ev.Rune()]
 	} else {
@@ -199,6 +202,11 @@ func (fm *fileManager) endFilter(d int) {
 	if d != 0 {
 		fm.active.step(d)
 	}
+}
+
+func (fm *fileManager) sortBy(s paneSort) {
+	fm.active.SetSort(s)
+	fm.info("Sort: " + s.String())
 }
 
 func (fm *fileManager) switchPane() {
