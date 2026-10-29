@@ -36,9 +36,9 @@ Không có task setup: module, công cụ và test helper đã có; không thêm
 
 **Kiểm thử độc lập**: `go test -race ./internal/core/services/ -run EditorCommand -v`
 
-- [ ] T001 Tạo internal/core/services/sftp_edit_test.go (license header Apache) với `TestEditorCommand` dạng bảng: `""` → `[vi]`, `"   "` → `[vi]`, `"nano"` → `[nano]`, `"code --wait"` → `[code --wait]`; tạo internal/core/services/sftp_edit.go (license header) chỉ với `package services` để test biên dịch được tới lỗi "undefined: EditorCommand"; chạy và xác nhận FAIL
-- [ ] T002 Trong internal/core/services/sftp_edit.go thêm `EditorCommand(env string) []string`: `strings.Fields(env)`, rỗng → `[]string{"vi"}`; chạy `go test -race ./...`, `gofmt -l .`, `go vet ./...`; xác nhận PASS
-- [ ] T003 Commit `feat: pick sftp editor from $EDITOR` (sftp_edit.go, sftp_edit_test.go, tasks.md)
+- [X] T001 Tạo internal/core/services/sftp_edit_test.go (license header Apache) với `TestEditorCommand` dạng bảng: `""` → `[vi]`, `"   "` → `[vi]`, `"nano"` → `[nano]`, `"code --wait"` → `[code --wait]`; tạo internal/core/services/sftp_edit.go (license header) chỉ với `package services` để test biên dịch được tới lỗi "undefined: EditorCommand"; chạy và xác nhận FAIL
+- [X] T002 Trong internal/core/services/sftp_edit.go thêm `EditorCommand(env string) []string`: `strings.Fields(env)`, rỗng → `[]string{"vi"}`; chạy `go test -race ./...`, `gofmt -l .`, `go vet ./...`; xác nhận PASS
+- [X] T003 Commit `feat: pick sftp editor from $EDITOR` (sftp_edit.go, sftp_edit_test.go, tasks.md)
 
 ---
 
