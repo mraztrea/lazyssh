@@ -24,6 +24,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/Adembc/lazyssh/internal/core/domain"
 	"github.com/Adembc/lazyssh/internal/core/ports"
 	"github.com/Adembc/lazyssh/internal/core/services"
 	"github.com/gdamore/tcell/v2"
@@ -39,11 +40,12 @@ const (
 )
 
 type fileManager struct {
-	t      *tui
-	alias  string
-	sess   ports.SFTPSession
-	client *sftp.Client
-	editor string // domain.Settings.Editor; empty falls back to $EDITOR then vi
+	t       *tui
+	alias   string
+	sess    ports.SFTPSession
+	client  *sftp.Client
+	editor  string // domain.Settings.Editor; empty falls back to $EDITOR then vi
+	homeDir string // domain.Server.HomeDir; empty opens the session's starting dir
 
 	local, remote, active *filePane
 	status                *tview.TextView
@@ -72,11 +74,12 @@ func (t *tui) handleFileManager() {
 		t.showStatusTempColor("SFTP failed: "+err.Error(), colorError)
 		return
 	}
-	t.showFileManager(alias, sess)
+	t.showFileManager(server, sess)
 }
 
-func (t *tui) showFileManager(alias string, sess ports.SFTPSession) {
-	fm := &fileManager{t: t, alias: alias, sess: sess, client: sess.Client()}
+func (t *tui) showFileManager(server domain.Server, sess ports.SFTPSession) {
+	alias := server.Alias
+	fm := &fileManager{t: t, alias: alias, sess: sess, client: sess.Client(), homeDir: server.HomeDir}
 	if s, err := t.syncService.Settings(); err == nil {
 		fm.editor = s.Editor
 	}
@@ -131,7 +134,13 @@ func (t *tui) showFileManager(alias string, sess ports.SFTPSession) {
 	if err != nil {
 		wd = "/"
 	}
-	if err := fm.remote.Load(wd); err != nil {
+	start := services.ResolveRemoteDir(fm.homeDir, wd)
+	err = fm.remote.Load(start)
+	if err != nil && start != wd {
+		fm.fail("Home dir not found: " + fm.homeDir)
+		err = fm.remote.Load(wd)
+	}
+	if err != nil {
 		fm.fail(err.Error())
 	}
 	fm.active = fm.local

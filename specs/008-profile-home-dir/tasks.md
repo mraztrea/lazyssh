@@ -65,8 +65,8 @@ status đỏ `Home dir not found: <dir>`; không Home Dir → y hệt hiện t�
 
 **Kiểm thử độc lập**: quickstart.md bước 3, 4, 5, 7 (phần SFTP).
 
-- [ ] T008 [US2] Trong internal/adapters/ui/sftp_view.go: thêm trường `homeDir string` vào `fileManager`; `handleFileManager` gọi `t.showFileManager(server, sess)`; đổi chữ ký `showFileManager(server domain.Server, sess ports.SFTPSession)` với `alias := server.Alias` và `fm.homeDir = server.HomeDir`; thay khối khởi tạo pane Remote bằng: `wd` từ `Getwd()` (lỗi → `/`), `start := services.ResolveRemoteDir(fm.homeDir, wd)`, `err = fm.remote.Load(start)`, nếu `err != nil && start != wd` thì `fm.fail("Home dir not found: " + fm.homeDir)` rồi `err = fm.remote.Load(wd)`, nếu `err != nil` thì `fm.fail(err.Error())`. Chạy `go build ./...`, `go test -race ./...`, `gofmt -l .`, `go vet ./...`; xác nhận PASS
-- [ ] T009 [US2] Commit `feat: open sftp remote pane in the server home dir` (sftp_view.go, tasks.md)
+- [X] T008 [US2] Trong internal/adapters/ui/sftp_view.go: thêm trường `homeDir string` vào `fileManager`; `handleFileManager` gọi `t.showFileManager(server, sess)`; đổi chữ ký `showFileManager(server domain.Server, sess ports.SFTPSession)` với `alias := server.Alias` và `fm.homeDir = server.HomeDir`; thay khối khởi tạo pane Remote bằng: `wd` từ `Getwd()` (lỗi → `/`), `start := services.ResolveRemoteDir(fm.homeDir, wd)`, `err = fm.remote.Load(start)`, nếu `err != nil && start != wd` thì `fm.fail("Home dir not found: " + fm.homeDir)` rồi `err = fm.remote.Load(wd)`, nếu `err != nil` thì `fm.fail(err.Error())`. Chạy `go build ./...`, `go test -race ./...`, `gofmt -l .`, `go vet ./...`; xác nhận PASS
+- [X] T009 [US2] Commit `feat: open sftp remote pane in the server home dir` (sftp_view.go, tasks.md)
 
 ---
 
