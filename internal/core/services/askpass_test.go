@@ -204,6 +204,18 @@ func TestAskpass_KeyboardInteractivePromptAnswered(t *testing.T) {
 	}
 }
 
+// A jump host whose user@host merely contains ours (10.0.0.50 vs 10.0.0.5) must not get our password.
+func TestAskpass_SuperstringHostPromptNotAnswered(t *testing.T) {
+	pw := randomPassword(t)
+	for _, prompt := range []string{"alice@10.0.0.50's password: ", "(alice@10.0.0.5x) Password: ", "xalice@10.0.0.5's password: "} {
+		tty, open := ttyWith("typed\n")
+		code, out := runAskpass(t, lookupOf(pw, nil), aliceHost, prompt, open)
+		if code != 0 || out != "typed\n" || tty.written.String() != prompt {
+			t.Fatalf("%q: code=%d out=%q tty=%q", prompt, code, out, tty.written.String())
+		}
+	}
+}
+
 func TestAskpass_OtherHostPromptNotAnswered(t *testing.T) {
 	pw := randomPassword(t)
 	prompt := "bob@jump's password: "

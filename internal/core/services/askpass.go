@@ -57,7 +57,12 @@ func Askpass(
 ) int {
 	p := strings.ToLower(strings.TrimRight(prompt, " \t"))
 	if strings.HasSuffix(p, "password:") {
-		if user, host, err := userHost(alias); err == nil && user != "" && host != "" && strings.Contains(p, strings.ToLower(user+"@"+host)) {
+		// OpenSSH prompts are exactly "user@host's password: " (password auth) or
+		// "(user@host) <prompt>" (keyboard-interactive); anchor on them so a jump host whose
+		// user@host merely contains ours never gets this password.
+		user, host, err := userHost(alias)
+		uh := strings.ToLower(user + "@" + host)
+		if err == nil && user != "" && host != "" && (strings.HasPrefix(p, uh+"'s password:") || strings.HasPrefix(p, "("+uh+") ")) {
 			pw, err := lookup(alias)
 			if err != nil {
 				_, _ = fmt.Fprintf(os.Stderr, "lazyssh askpass: %s: %v\n", alias, err)
