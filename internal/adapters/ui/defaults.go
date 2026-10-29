@@ -144,6 +144,8 @@ func GetFieldPlaceholder(fieldName string) string {
 		return "default: " + defaultValue
 	case "User":
 		return "default: current username"
+	case "HomeDir":
+		return "e.g. /var/www/app"
 	case "ConnectTimeout":
 		if defaultValue == "" {
 			return "seconds (default: none)"

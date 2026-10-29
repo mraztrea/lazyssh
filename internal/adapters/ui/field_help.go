@@ -94,6 +94,14 @@ func formatDefaultValue(fieldName, value string) string {
 
 // fieldHelpData contains help information for all SSH config fields
 var fieldHelpData = map[string]FieldHelp{
+	"HomeDir": {
+		Field:       "HomeDir",
+		Description: "Remote directory to start in after SSH/SFTP connect. Stored by lazyssh only, never written to ssh config.",
+		Syntax:      "path | ~/path",
+		Examples:    []string{"/var/www/app", "~/projects"},
+		Default:     "none",
+		Category:    "lazyssh",
+	},
 	// Basic fields
 	"Alias": {
 		Field:       "Alias",

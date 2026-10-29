@@ -163,3 +163,12 @@ func TestHelpContent(t *testing.T) {
 		}
 	}
 }
+
+func TestHomeDirHelpAndPlaceholder(t *testing.T) {
+	if h := GetFieldHelp("HomeDir"); h == nil || h.Description == "" || len(h.Examples) == 0 {
+		t.Fatalf("HomeDir help = %+v", h)
+	}
+	if got := GetFieldPlaceholder("HomeDir"); got != "e.g. /var/www/app" {
+		t.Fatalf("HomeDir placeholder = %q", got)
+	}
+}

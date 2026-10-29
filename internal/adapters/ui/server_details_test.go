@@ -39,3 +39,15 @@ func TestServerDetails_PasswordNeverRendered(t *testing.T) {
 		t.Fatal("details pane renders the password")
 	}
 }
+
+func TestServerDetails_HomeDir(t *testing.T) {
+	sd := NewServerDetails()
+	sd.UpdateServer(domain.Server{Alias: "a", Aliases: []string{"a"}, Host: "h", Port: 22, HomeDir: "/var/www"})
+	if text := sd.GetText(false); !strings.Contains(text, "Home Dir: [white]/var/www[-]") {
+		t.Fatalf("details pane lacks the home dir:\n%s", text)
+	}
+	sd.UpdateServer(domain.Server{Alias: "a", Aliases: []string{"a"}, Host: "h", Port: 22})
+	if text := sd.GetText(false); strings.Contains(text, "Home Dir") {
+		t.Fatal("details pane shows an empty home dir")
+	}
+}

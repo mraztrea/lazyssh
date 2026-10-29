@@ -202,6 +202,12 @@ func (sd *ServerDetails) UpdateServer(server domain.Server) {
 				{"LogLevel", server.LogLevel},
 			},
 		},
+		{
+			name: "lazyssh",
+			fields: []fieldEntry{
+				{"Home Dir", server.HomeDir},
+			},
+		},
 	}
 
 	// Build advanced settings text without group labels for cleaner display

@@ -1072,6 +1072,7 @@ func (sf *ServerForm) getDefaultValues() ServerFormData {
 			Port:                 fmt.Sprint(sf.original.Port),
 			Key:                  strings.Join(sf.original.IdentityFiles, ", "),
 			Tags:                 strings.Join(sf.original.Tags, ", "),
+			HomeDir:              sf.original.HomeDir,
 			PrivateKey:           sf.original.PrivateKey,
 			AuthMethod:           authMethodOf(*sf.original),
 			Password:             sf.original.Password,
@@ -1256,6 +1257,7 @@ func (sf *ServerForm) createBasicForm() {
 
 	// Tags field
 	sf.addValidatedInputField(form, "Tags:", "Tags", defaultValues.Tags, 30, GetFieldPlaceholder("Tags"))
+	sf.addInputFieldWithHelp(form, "Home Dir:", "HomeDir", defaultValues.HomeDir, 40, GetFieldPlaceholder("HomeDir"))
 
 	// Add save and cancel buttons
 	form.AddButton("Save", sf.handleSaveButton)
@@ -1689,6 +1691,8 @@ type ServerFormData struct {
 	Port  string
 	Key   string
 	Tags  string
+	// HomeDir is the remote start directory (lazyssh metadata, not ssh config)
+	HomeDir string
 
 	// Embedded private key (raw TextArea text) and optional file to import it from
 	PrivateKey           string
@@ -1857,12 +1861,13 @@ func (sf *ServerForm) getFormData() ServerFormData {
 		AuthMethod:           getDropdownValue("Auth method:"),
 		Password:             getPassword(),
 
-		Alias: getFieldText("Alias:"),
-		Host:  getFieldText("Host/IP:"),
-		User:  getFieldText("User:"),
-		Port:  getFieldText("Port:"),
-		Key:   getFieldText("Keys:"),
-		Tags:  getFieldText("Tags:"),
+		Alias:   getFieldText("Alias:"),
+		Host:    getFieldText("Host/IP:"),
+		User:    getFieldText("User:"),
+		Port:    getFieldText("Port:"),
+		Key:     getFieldText("Keys:"),
+		Tags:    getFieldText("Tags:"),
+		HomeDir: getFieldText("Home Dir:"),
 		// Connection and proxy settings
 		ProxyJump:            getFieldText("ProxyJump:"),
 		ProxyCommand:         getFieldText("ProxyCommand:"),
@@ -2295,6 +2300,7 @@ func (sf *ServerForm) dataToServer(data ServerFormData) domain.Server {
 		PrivateKey:           data.PrivateKey,
 		Password:             data.Password,
 		Tags:                 tags,
+		HomeDir:              strings.TrimSpace(data.HomeDir),
 		ProxyJump:            data.ProxyJump,
 		ProxyCommand:         data.ProxyCommand,
 		RemoteCommand:        data.RemoteCommand,
