@@ -34,13 +34,36 @@ type fileEntry struct {
 	ModTime time.Time
 }
 
-// sortEntries puts directories first, then files, each case-insensitively by name.
-func sortEntries(e []fileEntry) {
+// paneSort is a pane's sort order; the zero value is by name, ascending.
+type paneSort struct{ byTime, desc bool }
+
+func (s paneSort) String() string {
+	field, arrow := "Name", "↑"
+	if s.byTime {
+		field = "Modified"
+	}
+	if s.desc {
+		arrow = "↓"
+	}
+	return field + " " + arrow
+}
+
+// sortEntries puts directories first, then orders each group by s; equal mtimes fall back to
+// name ascending. Names compare case-insensitively.
+func sortEntries(e []fileEntry, s paneSort) {
 	sort.SliceStable(e, func(i, j int) bool {
-		if e[i].IsDir != e[j].IsDir {
-			return e[i].IsDir
+		a, b := e[i], e[j]
+		if a.IsDir != b.IsDir {
+			return a.IsDir
 		}
-		return strings.ToLower(e[i].Name) < strings.ToLower(e[j].Name)
+		if s.byTime && !a.ModTime.Equal(b.ModTime) {
+			return a.ModTime.Before(b.ModTime) != s.desc
+		}
+		x, y := strings.ToLower(a.Name), strings.ToLower(b.Name)
+		if s.desc && !s.byTime {
+			return x > y
+		}
+		return x < y
 	})
 }
 
@@ -111,7 +134,8 @@ type filePane struct {
 	cwd     string
 	list    func(path string) ([]fileEntry, error)
 	join    func(elem ...string) string
-	all     []fileEntry // everything in cwd, sorted
+	all     []fileEntry // everything in cwd, sorted by sort
+	sort    paneSort
 	filter  string
 	entries []fileEntry // all after filter; table row i+2 is entries[i]
 }
@@ -129,7 +153,6 @@ func (p *filePane) Load(dir string) error {
 	if err != nil {
 		return err
 	}
-	sortEntries(entries)
 	if dir != p.cwd {
 		p.filter = ""
 	}
@@ -144,6 +167,14 @@ func (p *filePane) SetFilter(q string) {
 	p.render()
 }
 
+// SetSort reorders the pane by s, keeping the cursor row.
+func (p *filePane) SetSort(s paneSort) {
+	row, _ := p.GetSelection()
+	p.sort = s
+	p.render()
+	p.Select(row, 0)
+}
+
 // step moves the cursor by d rows, staying between the parent row and the last row.
 func (p *filePane) step(d int) {
 	row, _ := p.GetSelection()
@@ -151,6 +182,7 @@ func (p *filePane) step(d int) {
 }
 
 func (p *filePane) render() {
+	sortEntries(p.all, p.sort)
 	p.entries = filterEntries(p.all, p.filter)
 	p.Clear()
 	header := func(col int, text string) {
@@ -170,7 +202,7 @@ func (p *filePane) render() {
 		p.SetCell(row, 1, tview.NewTableCell(size).SetAlign(tview.AlignRight))
 		p.SetCell(row, 2, tview.NewTableCell(" "+e.ModTime.Format("2006-01-02 15:04:05")))
 	}
-	title := fmt.Sprintf(" %s: %s%s", p.title, p.cwd, p.suffix)
+	title := fmt.Sprintf(" %s: %s%s", p.title, p.cwd, p.suffix) + tview.Escape(" ["+p.sort.String()+"]")
 	if p.filter != "" {
 		title += tview.Escape(" [/" + p.filter + "]")
 	}

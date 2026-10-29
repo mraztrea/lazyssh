@@ -26,7 +26,7 @@ import (
 
 func TestSortEntries_DirsFirstCaseInsensitive(t *testing.T) {
 	e := []fileEntry{{Name: "b.txt"}, {Name: "A", IsDir: true}, {Name: "a.txt"}, {Name: "B", IsDir: true}}
-	sortEntries(e)
+	sortEntries(e, paneSort{})
 	want := []string{"A", "B", "a.txt", "b.txt"}
 	for i, w := range want {
 		if e[i].Name != w {
@@ -197,5 +197,100 @@ func TestFilePane_ModifiedColumn(t *testing.T) {
 	}
 	if got := p.GetCell(2, 2).Text; got != " 2026-10-29 14:05:09" {
 		t.Fatalf("modified = %q", got)
+	}
+}
+
+func TestPaneSort_String(t *testing.T) {
+	cases := map[paneSort]string{{}: "Name ↑", {desc: true}: "Name ↓", {byTime: true}: "Modified ↑", {true, true}: "Modified ↓"}
+	for s, want := range cases {
+		if got := s.String(); got != want {
+			t.Errorf("%+v = %q, want %q", s, got, want)
+		}
+	}
+}
+
+// sortFixture: dirs d1 (old) and D2 (new); files b (t1), a and C (t2), e (t3).
+func sortFixture() []fileEntry {
+	t1 := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
+	t2, t3 := t1.Add(time.Hour), t1.Add(2*time.Hour)
+	return []fileEntry{
+		{Name: "e", ModTime: t3}, {Name: "D2", IsDir: true, ModTime: t3}, {Name: "C", ModTime: t2},
+		{Name: "b", ModTime: t1}, {Name: "d1", IsDir: true, ModTime: t1}, {Name: "a", ModTime: t2},
+	}
+}
+
+func names(e []fileEntry) string {
+	var s []string
+	for _, x := range e {
+		s = append(s, x.Name)
+	}
+	return strings.Join(s, ",")
+}
+
+func TestSortEntries_Modes(t *testing.T) {
+	cases := map[paneSort]string{
+		{}:                         "d1,D2,a,b,C,e",
+		{desc: true}:               "D2,d1,e,C,b,a",
+		{byTime: true}:             "d1,D2,b,a,C,e",
+		{byTime: true, desc: true}: "D2,d1,e,a,C,b",
+	}
+	for s, want := range cases {
+		e := sortFixture()
+		sortEntries(e, s)
+		if got := names(e); got != want {
+			t.Errorf("%s: got %s, want %s", s, got, want)
+		}
+	}
+}
+
+func rowNames(p *filePane) string {
+	var s []string
+	for r := 2; r < p.GetRowCount(); r++ {
+		s = append(s, strings.TrimSuffix(p.GetCell(r, 0).Text, "/"))
+	}
+	return strings.Join(s, ",")
+}
+
+func sortTestPane(t *testing.T) *filePane {
+	t.Helper()
+	p := newFilePane("Remote", func(string) ([]fileEntry, error) { return sortFixture(), nil })
+	p.join = path.Join
+	if err := p.Load("/srv"); err != nil {
+		t.Fatal(err)
+	}
+	return p
+}
+
+func TestFilePane_SetSort(t *testing.T) {
+	p := sortTestPane(t)
+	if !strings.Contains(p.GetTitle(), "[Name ↑") {
+		t.Fatalf("default title = %q", p.GetTitle())
+	}
+	p.Select(4, 0)
+	p.SetSort(paneSort{byTime: true, desc: true})
+	if got := rowNames(p); got != "D2,d1,e,a,C,b" {
+		t.Fatalf("rows = %s", got)
+	}
+	if row, _ := p.GetSelection(); row != 4 {
+		t.Fatalf("selected row = %d, want 4", row)
+	}
+	if !strings.Contains(p.GetTitle(), "[Modified ↓") {
+		t.Fatalf("title = %q", p.GetTitle())
+	}
+	p.SetFilter("c")
+	if got := rowNames(p); got != "C" || !strings.Contains(p.GetTitle(), "[Modified ↓") {
+		t.Fatalf("filtered rows = %s title = %q", got, p.GetTitle())
+	}
+}
+
+func TestFilePane_LoadKeepsSort(t *testing.T) {
+	p := sortTestPane(t)
+	s := paneSort{byTime: true, desc: true}
+	p.SetSort(s)
+	if err := p.Load("/srv/other"); err != nil || p.sort != s {
+		t.Fatalf("sort = %+v err = %v", p.sort, err)
+	}
+	if got := rowNames(p); got != "D2,d1,e,a,C,b" {
+		t.Fatalf("rows = %s", got)
 	}
 }
