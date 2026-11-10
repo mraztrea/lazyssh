@@ -21,6 +21,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"slices"
 	"strings"
@@ -210,6 +211,44 @@ func TestRunSSH_ExitStatus(t *testing.T) {
 					t.Fatalf("recorded = %v, want %v", repo.recorded, tc.recorded)
 				}
 			})
+		}
+	}
+}
+
+func TestRemoveKnownHost(t *testing.T) {
+	if _, err := exec.LookPath("ssh-keygen"); err != nil {
+		t.Skip("ssh-keygen not installed")
+	}
+	dir := t.TempDir()
+	key := filepath.Join(dir, "k")
+	if out, err := exec.Command("ssh-keygen", "-q", "-t", "ed25519", "-N", "", "-f", key).CombinedOutput(); err != nil {
+		t.Fatalf("%v: %s", err, out)
+	}
+	pub, err := os.ReadFile(key + ".pub")
+	if err != nil {
+		t.Fatal(err)
+	}
+	file := filepath.Join(dir, "known_hosts")
+	content := "[127.0.0.1]:2222 " + string(pub) + "other " + string(pub)
+	if err := os.WriteFile(file, []byte(content), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	svc := NewServerService(zap.NewNop().Sugar(), &fakeRepo{})
+
+	if err := svc.RemoveKnownHost("[127.0.0.1]:2222", file); err != nil {
+		t.Fatal(err)
+	}
+	got, _ := os.ReadFile(file)
+	if strings.Contains(string(got), "2222") || !strings.HasPrefix(string(got), "other ") {
+		t.Fatalf("known_hosts = %q", got)
+	}
+	if old, _ := os.ReadFile(file + ".old"); string(old) != content {
+		t.Fatalf("known_hosts.old = %q", old)
+	}
+
+	for _, bad := range [][2]string{{"", file}, {"other", ""}, {"other", filepath.Join(dir, "missing")}} {
+		if err := svc.RemoveKnownHost(bad[0], bad[1]); err == nil {
+			t.Errorf("RemoveKnownHost(%q, %q) = nil, want error", bad[0], bad[1])
 		}
 	}
 }

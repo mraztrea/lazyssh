@@ -264,6 +264,21 @@ func (s *serverService) runSSH(server domain.Server, extraArgs []string) error {
 	return nil
 }
 
+// RemoveKnownHost runs `ssh-keygen -R host -f file`, which keeps the previous file as <file>.old.
+// It never adds the new key: ssh asks the user to accept it on the next connect.
+func (s *serverService) RemoveKnownHost(host, file string) error {
+	if host == "" || file == "" {
+		return errors.New("known_hosts host and file are required")
+	}
+	// #nosec G204 -- argv, no shell; getopt takes the next element as -R/-f's value even if it starts with '-'.
+	out, err := exec.Command("ssh-keygen", "-R", host, "-f", file).CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("ssh-keygen -R %s -f %s: %w: %s", host, file, err, strings.TrimSpace(string(out)))
+	}
+	s.logger.Infow("removed known host key", "host", host, "file", file)
+	return nil
+}
+
 // StartForward starts ssh port forwarding in the background and tracks the process.
 func (s *serverService) StartForward(alias string, extraArgs []string) (int, error) {
 	s.fwMu.Lock()

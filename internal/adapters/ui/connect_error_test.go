@@ -33,3 +33,14 @@ func TestConnectErrorText(t *testing.T) {
 		}
 	}
 }
+
+func TestHostKeyText(t *testing.T) {
+	got := hostKeyText("web", &domain.HostKeyChange{
+		Host: "[127.0.0.1]:2222", File: "/k/known_hosts", Line: 19, KeyType: "ED25519", Fingerprint: "SHA256:abc",
+	})
+	for _, want := range []string{"man-in-the-middle", "[127.0.0.1[]:2222", "ED25519", "SHA256:abc", "/k/known_hosts:19"} {
+		if !strings.Contains(got, want) {
+			t.Errorf("text %q lacks %q", got, want)
+		}
+	}
+}

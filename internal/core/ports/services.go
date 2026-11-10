@@ -34,6 +34,8 @@ type ServerService interface {
 	StopForwarding(alias string) error
 	IsForwarding(alias string) bool
 	Ping(server domain.Server) (bool, time.Duration, error)
+	// RemoveKnownHost deletes host's keys from one known_hosts file; call only after the user confirms.
+	RemoveKnownHost(host, file string) error
 }
 
 // SyncService pushes and pulls the encrypted config bundle. The password is never stored.

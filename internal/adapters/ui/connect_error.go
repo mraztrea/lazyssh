@@ -16,6 +16,7 @@ package ui
 
 import (
 	"errors"
+	"fmt"
 
 	"github.com/Adembc/lazyssh/internal/core/domain"
 	"github.com/rivo/tview"
@@ -39,6 +40,10 @@ func (t *tui) showConnectError(server domain.Server, err error, retry func()) {
 	if !errors.As(err, &se) {
 		se = &domain.SSHError{Reason: err.Error()}
 	}
+	if se.HostKey != nil {
+		t.showHostKeyChanged(server, se.HostKey, retry)
+		return
+	}
 	modal := tview.NewModal().
 		SetText(connectErrorText(server.Alias, se)).
 		AddButtons([]string{"Retry", "Edit server", "Close"}).
@@ -53,5 +58,37 @@ func (t *tui) showConnectError(server domain.Server, err error, retry func()) {
 		}).
 		SetFocus(2)
 	modal.SetTitle(" Connection failed ")
+	t.app.SetRoot(modal, true)
+}
+
+// hostKeyText is the body of the host-key-changed dialog.
+func hostKeyText(alias string, hk *domain.HostKeyChange) string {
+	return tview.Escape(fmt.Sprintf("WARNING: the host key of %s has CHANGED.\n\n"+
+		"Someone may be intercepting this connection (man-in-the-middle attack), or the server was "+
+		"reinstalled or its key rotated. Verify the new fingerprint with the server's administrator "+
+		"before continuing.\n\n"+
+		"Host: %s\nNew %s key: %s\nOld key: %s:%d\n\n"+
+		"Remove the old key and reconnect? ssh will then show the new fingerprint and ask you to accept it.",
+		alias, hk.Host, hk.KeyType, hk.Fingerprint, hk.File, hk.Line))
+}
+
+// showHostKeyChanged asks before touching known_hosts; Cancel (and Esc) is the default and changes nothing.
+func (t *tui) showHostKeyChanged(server domain.Server, hk *domain.HostKeyChange, retry func()) {
+	modal := tview.NewModal().
+		SetText(hostKeyText(server.Alias, hk)).
+		AddButtons([]string{"Cancel", "Remove old key & reconnect"}).
+		SetDoneFunc(func(buttonIndex int, _ string) {
+			t.returnToMain()
+			if buttonIndex != 1 {
+				return
+			}
+			if err := t.serverService.RemoveKnownHost(hk.Host, hk.File); err != nil {
+				t.showConnectError(server, &domain.SSHError{Reason: "Could not remove the old host key", Output: err.Error()}, retry)
+				return
+			}
+			retry()
+		}).
+		SetFocus(0)
+	modal.SetTitle(" Host key changed ")
 	t.app.SetRoot(modal, true)
 }
