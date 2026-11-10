@@ -78,7 +78,7 @@ func (s *sftpService) Connect(alias string) (ports.SFTPSession, error) {
 		_ = cmd.Process.Kill()
 		_ = cmd.Wait() // also waits for the stderr copy to finish
 		s.logger.Errorw("sftp connect failed", "alias", alias, "error", err, "stderr", stderr.String())
-		return nil, classifySSHError(stderr.String(), err.Error())
+		return nil, connectError(alias, stderr.String(), err.Error())
 	}
 	s.logger.Infow("sftp session opened", "alias", alias)
 	return &sftpSession{logger: s.logger, alias: alias, client: client, cmd: cmd, stdin: stdin, stderr: stderr}, nil

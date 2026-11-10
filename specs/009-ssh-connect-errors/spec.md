@@ -186,6 +186,11 @@ hai đều quay về danh sách không có hộp thoại.
   chương trình `ssh`) PHẢI được báo bằng cùng hộp thoại lỗi thường; thông báo không được chứa mật
   khẩu hay khoá.
 - **FR-011**: Các chuỗi giao diện bằng tiếng Anh như phần còn lại của ứng dụng.
+- **FR-012**: Vì stderr của ssh có thể chứa văn bản do server quyết định (banner trước xác thực,
+  output của phiên không có tty), lazyssh CHỈ đề nghị xoá key khi tên host trong cảnh báo trùng
+  với tên mà ssh dùng trong `known_hosts` cho chính server đang kết nối (`HostKeyAlias`, hoặc
+  `HostName` kèm `Port` theo `ssh -G`). Không trùng (kể cả host key của jump host đổi) thì chỉ
+  cảnh báo, người dùng tự sửa `known_hosts`. *(bổ sung khi review cuối, 2026-11-10)*
 
 ### Thực thể chính (Key Entities)
 

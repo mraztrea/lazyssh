@@ -248,7 +248,7 @@ func (s *serverService) runSSH(server domain.Server, extraArgs []string) error {
 	case err == nil:
 	case errors.As(err, &exitErr) && exitErr.ExitCode() == 255:
 		s.logger.Errorw("ssh connection failed", "alias", alias, "error", err)
-		return classifySSHError(tail.String(), "ssh exited with status 255")
+		return connectError(alias, tail.String(), "ssh exited with status 255")
 	case errors.As(err, &exitErr):
 		s.logger.Infow("ssh end", "alias", alias, "status", err)
 		return nil

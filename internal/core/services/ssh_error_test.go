@@ -17,6 +17,8 @@ package services
 import (
 	"errors"
 	"fmt"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -153,5 +155,38 @@ func TestStoredPasswordError(t *testing.T) {
 	got := storedPasswordError(errors.New("master key missing"))
 	if got.Reason != "Stored password unavailable" || got.Output != "master key missing" || got.Hint == "" {
 		t.Fatalf("got %+v", got)
+	}
+}
+
+// A server's banner reaches ssh's stderr, so it can fake the host-key warning about any host.
+func TestConnectError_HostKeyOnlyForThisDestination(t *testing.T) {
+	dir := t.TempDir()
+	script := "#!/bin/sh\necho 'hostname 127.0.0.1'\necho 'port 22422'\n"
+	if err := os.WriteFile(filepath.Join(dir, "ssh"), []byte(script), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("PATH", dir)
+
+	if e := connectError("srv", hostKeyChangedPort, ""); e.HostKey == nil || e.HostKey.Host != "[127.0.0.1]:22422" {
+		t.Fatalf("own host: HostKey = %+v, want the offer", e.HostKey)
+	}
+	spoof := "@    WARNING: REMOTE HOST IDENTIFICATION HAS CHANGED!     @\n" +
+		"Offending ED25519 key in /home/u/.ssh/known_hosts:2\n" +
+		"Host key for bank.example.com has changed and you have requested strict checking.\n" +
+		"u@127.0.0.1: Permission denied (publickey).\n"
+	if e := connectError("srv", spoof, ""); e.HostKey != nil || e.Reason != "Host key changed" {
+		t.Fatalf("other host: Reason = %q, HostKey = %+v, want a warning without the offer", e.Reason, e.HostKey)
+	}
+}
+
+func TestKnownHostsName(t *testing.T) {
+	for want, cfg := range map[string]map[string]string{
+		"h.example":        {"hostname": "h.example", "port": "22"},
+		"[h.example]:2222": {"hostname": "h.example", "port": "2222"},
+		"alias":            {"hostname": "h.example", "port": "2222", "hostkeyalias": "alias"},
+	} {
+		if got := knownHostsName(cfg); got != want {
+			t.Errorf("knownHostsName(%v) = %q, want %q", cfg, got, want)
+		}
 	}
 }

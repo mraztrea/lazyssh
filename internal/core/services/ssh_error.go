@@ -15,6 +15,7 @@
 package services
 
 import (
+	"os/exec"
 	"regexp"
 	"strconv"
 	"strings"
@@ -77,6 +78,32 @@ var (
 	reOffending   = regexp.MustCompile(`(?m)^Offending \S+ key in (.+):(\d+)$`)
 	reNewKey      = regexp.MustCompile(`fingerprint for the (\S+) key sent by the remote host is\s+(\S+)`)
 )
+
+// connectError classifies a failed connection to alias. stderr can carry text the server chose
+// (its pre-auth banner, output of a session without a tty), so the known_hosts fix is offered
+// only when the host ssh named is the one this alias's key is filed under.
+func connectError(alias, stderr, fallback string) *domain.SSHError {
+	e := classifySSHError(stderr, fallback)
+	if e.HostKey != nil {
+		// #nosec G204
+		out, _ := exec.Command("ssh", "-G", "--", alias).Output()
+		if !strings.EqualFold(e.HostKey.Host, knownHostsName(parseSSHG(string(out)))) {
+			e.HostKey = nil
+		}
+	}
+	return e
+}
+
+// knownHostsName is the name ssh files a destination's host key under in known_hosts.
+func knownHostsName(cfg map[string]string) string {
+	if a := cfg["hostkeyalias"]; a != "" && a != "none" {
+		return a
+	}
+	if p := cfg["port"]; p != "" && p != "22" {
+		return "[" + cfg["hostname"] + "]:" + p
+	}
+	return cfg["hostname"]
+}
 
 // classifySSHError explains ssh's stderr after it exited with its own error status (255).
 // fallback becomes Output when ssh printed nothing.
