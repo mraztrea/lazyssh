@@ -18,11 +18,17 @@ import (
 	"crypto/ed25519"
 	"crypto/rand"
 	"encoding/pem"
+	"errors"
+	"fmt"
+	"os"
+	"path/filepath"
 	"slices"
 	"strings"
 	"testing"
 
 	"github.com/Adembc/lazyssh/internal/core/domain"
+	"github.com/Adembc/lazyssh/internal/core/ports"
+	"go.uber.org/zap"
 	"golang.org/x/crypto/ssh"
 )
 
@@ -140,5 +146,70 @@ func TestSSHArgs(t *testing.T) {
 	got = sshArgs("h", auth, pre, post, remote)
 	if want := []string{"-o", "RemoteCommand=none", "-t", "-L", "1:2:3", "-o", "A", "-N", "h", remote}; !slices.Equal(got, want) {
 		t.Errorf("with remote: got %q, want %q", got, want)
+	}
+}
+
+// fakeRepo implements only what SSH needs; any other call panics on the nil embedded interface.
+type fakeRepo struct {
+	ports.ServerRepository
+	recorded []string
+	pwErr    error
+}
+
+func (r *fakeRepo) GetPassword(string) (string, error) { return "", r.pwErr }
+
+func (r *fakeRepo) RecordSSH(alias string) error {
+	r.recorded = append(r.recorded, alias)
+	return nil
+}
+
+// fakeSSH puts an `ssh` on PATH that prints $FAKE_SSH_ERR to stderr and exits $FAKE_SSH_CODE.
+func fakeSSH(t *testing.T, code, stderr string) {
+	dir := t.TempDir()
+	script := "#!/bin/sh\nprintf '%s\\n' \"$FAKE_SSH_ERR\" >&2\nexit \"$FAKE_SSH_CODE\"\n"
+	if err := os.WriteFile(filepath.Join(dir, "ssh"), []byte(script), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("PATH", dir)
+	t.Setenv("FAKE_SSH_CODE", code)
+	t.Setenv("FAKE_SSH_ERR", stderr)
+}
+
+func TestRunSSH_ExitStatus(t *testing.T) {
+	tests := []struct {
+		name, code string
+		pwErr      error
+		reason     string // "" = nil error
+		recorded   bool
+	}{
+		{name: "ssh error", code: "255", reason: "Connection refused"},
+		{name: "remote status", code: "3"},
+		{name: "success", code: "0", recorded: true},
+		{name: "stored password unreadable", code: "0", pwErr: errors.New("master key missing"), reason: "Stored password unavailable"},
+	}
+	for _, tc := range tests {
+		for _, withArgs := range []bool{false, true} {
+			t.Run(fmt.Sprintf("%s/withArgs=%v", tc.name, withArgs), func(t *testing.T) {
+				fakeSSH(t, tc.code, "ssh: connect to host h port 22: Connection refused")
+				repo := &fakeRepo{pwErr: tc.pwErr}
+				svc := NewServerService(zap.NewNop().Sugar(), repo)
+				var err error
+				if withArgs {
+					err = svc.SSHWithArgs(domain.Server{Alias: "a"}, []string{"-L", "1:h:2"})
+				} else {
+					err = svc.SSH(domain.Server{Alias: "a"})
+				}
+				var se *domain.SSHError
+				switch {
+				case tc.reason == "" && err != nil:
+					t.Fatalf("err = %v, want nil", err)
+				case tc.reason != "" && (!errors.As(err, &se) || se.Reason != tc.reason):
+					t.Fatalf("err = %#v, want SSHError %q", err, tc.reason)
+				}
+				if got := len(repo.recorded) == 1; got != tc.recorded {
+					t.Fatalf("recorded = %v, want %v", repo.recorded, tc.recorded)
+				}
+			})
+		}
 	}
 }

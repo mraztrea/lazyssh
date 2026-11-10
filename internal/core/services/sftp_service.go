@@ -18,7 +18,6 @@ import (
 	"fmt"
 	"io"
 	"os/exec"
-	"strings"
 	"sync"
 
 	"github.com/Adembc/lazyssh/internal/core/ports"
@@ -53,7 +52,8 @@ func newSFTPServiceWithCmd(logger *zap.SugaredLogger, password func(alias string
 func (s *sftpService) Connect(alias string) (ports.SFTPSession, error) {
 	authArgs, env, err := passwordAuth(s.password, alias)
 	if err != nil {
-		return nil, fmt.Errorf("sftp %s: %w", alias, err)
+		s.logger.Errorw("sftp password lookup failed", "alias", alias, "error", err)
+		return nil, storedPasswordError(err)
 	}
 	cmd := s.cmdFor(alias, authArgs)
 	if env != nil {
@@ -78,10 +78,7 @@ func (s *sftpService) Connect(alias string) (ports.SFTPSession, error) {
 		_ = cmd.Process.Kill()
 		_ = cmd.Wait() // also waits for the stderr copy to finish
 		s.logger.Errorw("sftp connect failed", "alias", alias, "error", err, "stderr", stderr.String())
-		if line := stderr.lastLine(); line != "" {
-			return nil, fmt.Errorf("sftp %s: %w: %s", alias, err, line)
-		}
-		return nil, fmt.Errorf("sftp %s: %w", alias, err)
+		return nil, classifySSHError(stderr.String(), err.Error())
 	}
 	s.logger.Infow("sftp session opened", "alias", alias)
 	return &sftpSession{logger: s.logger, alias: alias, client: client, cmd: cmd, stdin: stdin, stderr: stderr}, nil
@@ -135,9 +132,4 @@ func (b *tailBuffer) String() string {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 	return string(b.buf)
-}
-
-func (b *tailBuffer) lastLine() string {
-	lines := strings.Split(strings.TrimSpace(b.String()), "\n")
-	return strings.TrimSpace(lines[len(lines)-1])
 }

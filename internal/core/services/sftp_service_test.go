@@ -15,6 +15,7 @@
 package services
 
 import (
+	"errors"
 	"io"
 	"os"
 	"os/exec"
@@ -23,6 +24,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/Adembc/lazyssh/internal/core/domain"
 	"github.com/pkg/sftp"
 	"go.uber.org/zap"
 )
@@ -91,11 +93,12 @@ func TestConnect_ProcessExitReturnsError(t *testing.T) {
 	}()
 	select {
 	case err := <-done:
-		if err == nil {
-			t.Fatal("expected an error")
+		var se *domain.SSHError
+		if !errors.As(err, &se) || se.Reason != "Connection refused" {
+			t.Fatalf("err = %#v, want SSHError \"Connection refused\"", err)
 		}
-		if !strings.Contains(err.Error(), "Connection refused") {
-			t.Fatalf("error lacks last stderr line: %v", err)
+		if !strings.Contains(se.Output, "port 22: Connection refused") {
+			t.Fatalf("Output lacks ssh's stderr: %q", se.Output)
 		}
 	case <-time.After(5 * time.Second):
 		t.Fatal("Connect hung after ssh exited")

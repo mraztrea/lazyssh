@@ -18,6 +18,7 @@ import (
 	"bufio"
 	"errors"
 	"fmt"
+	"io"
 	"net"
 	"os"
 	"os/exec"
@@ -213,17 +214,45 @@ func (s *serverService) sshCmd(alias string, pre, post []string, remote string) 
 
 // SSH starts an interactive SSH session to the given alias using the system's ssh client.
 func (s *serverService) SSH(server domain.Server) error {
+	return s.runSSH(server, nil)
+}
+
+// SSHWithArgs runs system ssh with provided extra args (e.g., -L/-R/-D) for the given alias.
+func (s *serverService) SSHWithArgs(server domain.Server, extraArgs []string) error {
+	return s.runSSH(server, extraArgs)
+}
+
+// runSSH runs an interactive session. Only failures of ssh itself (exit 255) or of starting it
+// come back as errors; a remote exit status or a Ctrl-C ends the session normally.
+func (s *serverService) runSSH(server domain.Server, extraArgs []string) error {
 	alias := server.Alias
-	s.logger.Infow("ssh start", "alias", alias)
-	cmd, err := s.sshCmd(alias, nil, nil, HomeDirCommand(server))
+	s.logger.Infow("ssh start", "alias", alias, "args", extraArgs)
+	cmd, err := s.sshCmd(alias, extraArgs, nil, HomeDirCommand(server))
 	if err != nil {
 		s.logger.Errorw("ssh password lookup failed", "alias", alias, "error", err)
-		return err
+		return storedPasswordError(err)
 	}
+	tail := &tailBuffer{}
 	cmd.Stdin = os.Stdin
 	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-	if err := cmd.Run(); err != nil {
+	// ssh prompts on /dev/tty, so piping stderr only adds a copy for classifying failures.
+	cmd.Stderr = io.MultiWriter(os.Stderr, tail)
+	// A ProxyCommand child or debug ControlPersist master may hold stderr open after ssh exits.
+	cmd.WaitDelay = time.Second
+	err = cmd.Run()
+	if errors.Is(err, exec.ErrWaitDelay) {
+		err = nil
+	}
+	var exitErr *exec.ExitError
+	switch {
+	case err == nil:
+	case errors.As(err, &exitErr) && exitErr.ExitCode() == 255:
+		s.logger.Errorw("ssh connection failed", "alias", alias, "error", err)
+		return classifySSHError(tail.String(), "ssh exited with status 255")
+	case errors.As(err, &exitErr):
+		s.logger.Infow("ssh end", "alias", alias, "status", err)
+		return nil
+	default:
 		s.logger.Errorw("ssh command failed", "alias", alias, "error", err)
 		return err
 	}
@@ -231,31 +260,7 @@ func (s *serverService) SSH(server domain.Server) error {
 	if err := s.serverRepository.RecordSSH(alias); err != nil {
 		s.logger.Errorw("failed to record ssh metadata", "alias", alias, "error", err)
 	}
-
 	s.logger.Infow("ssh end", "alias", alias)
-	return nil
-}
-
-// SSHWithArgs runs system ssh with provided extra args (e.g., -L/-R/-D) for the given alias.
-func (s *serverService) SSHWithArgs(server domain.Server, extraArgs []string) error {
-	alias := server.Alias
-	s.logger.Infow("ssh start (with args)", "alias", alias, "args", extraArgs)
-	cmd, err := s.sshCmd(alias, extraArgs, nil, HomeDirCommand(server))
-	if err != nil {
-		s.logger.Errorw("ssh password lookup failed", "alias", alias, "error", err)
-		return err
-	}
-	cmd.Stdin = os.Stdin
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-	if err := cmd.Run(); err != nil {
-		s.logger.Errorw("ssh (with args) failed", "alias", alias, "error", err)
-		return err
-	}
-	if err := s.serverRepository.RecordSSH(alias); err != nil {
-		s.logger.Errorw("failed to record ssh metadata", "alias", alias, "error", err)
-	}
-	s.logger.Infow("ssh end (with args)", "alias", alias)
 	return nil
 }
 
