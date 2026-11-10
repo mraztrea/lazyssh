@@ -83,8 +83,8 @@ xoá bằng `ssh-keygen -R host -f file` chỉ khi người dùng chọn.
 
 ## Phase 6: Hoàn thiện — plan T6
 
-- [ ] T014 Chạy quickstart.md phần end-to-end với `sshd` tạm (ghi kết quả vào báo cáo; phần không tự động được thì ghi rõ)
-- [ ] T015 Cập nhật README.md (Quick Server Navigation: hộp thoại lỗi kết nối, luồng host key đổi, `.old`) và commit `docs: document connection error dialogs`
+- [X] T014 Chạy quickstart.md phần end-to-end với `sshd` tạm (ghi kết quả vào báo cáo; phần không tự động được thì ghi rõ)
+- [X] T015 Cập nhật README.md (Quick Server Navigation: hộp thoại lỗi kết nối, luồng host key đổi, `.old`) và commit `docs: document connection error dialogs`
 
 ## Phụ thuộc
 

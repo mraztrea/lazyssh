@@ -40,6 +40,8 @@ With lazyssh, you can quickly navigate, connect, manage, and transfer files betw
 ### Quick Server Navigation
 - 🔍 Fuzzy search by alias, IP, or tags.
 - 🖥 One‑keypress SSH into the selected server (Enter).
+- 🚨 Failed connections are explained instead of dropping you back to the list: when ssh itself fails (SSH, Forward + SSH or the file manager), a dialog shows the cause (authentication failed, connection refused, timed out, host name not found, host unreachable, key permissions too open, …), a hint and the last lines ssh printed, with `Retry` / `Edit server` / `Close`. A session that simply ends (any remote exit status) shows nothing.
+- 🛡 If the server's host key changed, lazyssh warns about a possible man-in-the-middle attack and shows the new fingerprint and the `known_hosts` file:line of the old key. Only if you pick `Remove old key & reconnect` (the default is `Cancel`) does it run `ssh-keygen -R <host> -f <file>` (the previous file is kept as `<file>.old`) and reconnect, so ssh asks you to verify and accept the new fingerprint. lazyssh never accepts a host key for you.
 - 🏷 Tag servers (e.g., prod, dev, test) for quick filtering.
 - ↕️ Sort by alias or last SSH (toggle + reverse).
 

@@ -218,6 +218,10 @@ hai đều quay về danh sách không có hộp thoại.
   `<file>.old`.
 - Port forwarding chạy nền (`Only forward`) chỉ báo trên status bar khi không khởi chạy được tiến
   trình; lỗi kết nối của tiến trình nền (chạy không có terminal) ngoài phạm vi tính năng này.
+- Bấm Ctrl-C khi ssh đang hỏi (mật khẩu, host key) hiện làm cả lazyssh thoát vì lazyssh và ssh
+  cùng nhận tín hiệu ngắt; hành vi này có từ trước tính năng (đã kiểm trên `main`) và ngoài phạm vi.
+- Sau mỗi lần kết nối, danh sách server được nạp lại và con trỏ về dòng đầu (có từ trước); các nút
+  Retry / Edit server / xoá key luôn dùng đúng server vừa kết nối, không phụ thuộc con trỏ.
 - Ngoài phạm vi: tự sửa quyền file key, tự thêm key mới vào `known_hosts`, so sánh fingerprint với
   nguồn bên ngoài (DNS SSHFP...), dịch thông báo sang ngôn ngữ khác, tuỳ chọn cấu hình bật/tắt
   hộp thoại.

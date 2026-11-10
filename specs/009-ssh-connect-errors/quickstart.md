@@ -36,3 +36,26 @@ chạy qua một `ssh` bọc trong `PATH` luôn thêm `-F <tmp>/ssh_config`, và
    `yes`.
 8. Forward + SSH (`f`, Mode `Forward + SSH`) tới cổng đóng → hộp thoại; `Retry` dùng lại cùng
    tham số forward.
+
+## Kết quả chạy end-to-end (2026-11-10, OpenSSH 10.6p1)
+
+Chạy binary lazyssh thật trong pty (script Python điều khiển phím, đọc màn hình), `HOME` tạm, `ssh`/
+`ssh-keygen` bọc trong `PATH` (wrapper `ssh-keygen` từ chối mọi file ngoài thư mục tạm), `sshd -d`
+chạy lặp trên cổng 22422:
+
+- Bước 2: hộp thoại đúng nội dung; Enter (mặc định) và Esc đều huỷ, `known_hosts` giữ nguyên
+  (so sha256), không có `.old`.
+- Bước 3: Tab + Enter → `known_hosts.old` được tạo, ssh hỏi `Are you sure you want to continue
+  connecting` kèm fingerprint mới; `yes` → shell; `exit 3` → về danh sách, không hộp thoại. Trả lời
+  `no` → hộp thoại `Host key not verified`. Phiên `exit` (0) → không hộp thoại, `Last SSH: just now`.
+- Bước 4–6: `Connection refused`, `Host name not found`, `Authentication failed` (user không tồn
+  tại) đúng nguyên nhân; Enter = Close; Retry kết nối lại; Edit server mở form Edit Server.
+- Bước 7: SFTP với host key đổi → cùng hộp thoại; xoá → `yes` → file manager mở. sshd không có
+  `Subsystem sftp` → hộp thoại `SSH connection failed` với nguyên văn
+  `subsystem request failed on channel 0`.
+- Bước 8: Forward + SSH tới cổng đóng → hộp thoại; Retry chạy lại với cùng `-L 18080:localhost:80`
+  (log).
+- Xoá key thất bại (thư mục chứa `known_hosts` chỉ đọc) → hộp thoại `Could not remove the old host
+  key` với `mkstemp: Permission denied`, không kết nối lại.
+- Chưa kiểm được: askpass (mật khẩu đã lưu) với stderr qua pipe — `sshd` không root không xác thực
+  mật khẩu được; chỉ suy luận từ code (helper mở tty riêng).
