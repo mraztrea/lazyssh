@@ -228,11 +228,29 @@ func (t *tui) handleReturnToSearch() {
 
 func (t *tui) handleServerConnect() {
 	if server, ok := t.serverList.GetSelectedServer(); ok {
+		t.connectSSH(server)
+	}
+}
 
-		t.app.Suspend(func() {
-			_ = t.serverService.SSH(server)
-		})
-		t.refreshServerList()
+func (t *tui) connectSSH(server domain.Server) {
+	var err error
+	t.app.Suspend(func() {
+		err = t.serverService.SSH(server)
+	})
+	t.refreshServerList()
+	if err != nil {
+		t.showConnectError(server, err, func() { t.connectSSH(server) })
+	}
+}
+
+func (t *tui) connectSSHWithArgs(server domain.Server, args []string) {
+	var err error
+	t.app.Suspend(func() {
+		err = t.serverService.SSHWithArgs(server, args)
+	})
+	t.returnToMain()
+	if err != nil {
+		t.showConnectError(server, err, func() { t.connectSSHWithArgs(server, args) })
 	}
 }
 
@@ -251,13 +269,17 @@ func (t *tui) handleServerAdd() {
 
 func (t *tui) handleServerEdit() {
 	if server, ok := t.serverList.GetSelectedServer(); ok {
-		form := NewServerForm(ServerFormEdit, &server).
-			SetApp(t.app).
-			SetVersionInfo(t.version, t.commit).
-			OnSave(t.handleServerSave).
-			OnCancel(t.handleFormCancel)
-		t.app.SetRoot(form, true)
+		t.showServerEditForm(server)
 	}
+}
+
+func (t *tui) showServerEditForm(server domain.Server) {
+	form := NewServerForm(ServerFormEdit, &server).
+		SetApp(t.app).
+		SetVersionInfo(t.version, t.commit).
+		OnSave(t.handleServerSave).
+		OnCancel(t.handleFormCancel)
+	t.app.SetRoot(form, true)
 }
 
 func (t *tui) handleServerSave(server domain.Server, original *domain.Server) {
@@ -552,10 +574,7 @@ func (t *tui) showPortForwardForm(server domain.Server) {
 			return
 		}
 
-		t.app.Suspend(func() {
-			_ = t.serverService.SSHWithArgs(server, args)
-		})
-		t.returnToMain()
+		t.connectSSHWithArgs(server, args)
 	})
 	form.AddButton("Cancel", func() { t.returnToMain() })
 	form.SetCancelFunc(func() { t.returnToMain() })

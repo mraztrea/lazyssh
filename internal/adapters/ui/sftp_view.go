@@ -59,10 +59,12 @@ type fileManager struct {
 // handleFileManager opens an SFTP session for the selected server. Connecting runs with the TUI
 // suspended so OpenSSH can prompt for a passphrase, password or host key on the terminal.
 func (t *tui) handleFileManager() {
-	server, ok := t.serverList.GetSelectedServer()
-	if !ok {
-		return
+	if server, ok := t.serverList.GetSelectedServer(); ok {
+		t.openFileManager(server)
 	}
+}
+
+func (t *tui) openFileManager(server domain.Server) {
 	alias := server.Alias
 	var sess ports.SFTPSession
 	var err error
@@ -71,7 +73,7 @@ func (t *tui) handleFileManager() {
 		sess, err = t.sftpService.Connect(alias)
 	})
 	if err != nil {
-		t.showStatusTempColor("SFTP failed: "+err.Error(), colorError)
+		t.showConnectError(server, err, func() { t.openFileManager(server) })
 		return
 	}
 	t.showFileManager(server, sess)
